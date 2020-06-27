@@ -43,7 +43,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// Types of authentication credentials
 #[derive(Clone, Debug)]
 pub enum Credentials {
-    /// username and password credentials
+    /// Username and password credentials
     Basic(String, String), // todo: OAuth
 }
 
@@ -57,7 +57,7 @@ pub struct Jira {
 }
 
 impl Jira {
-    /// creates a new instance of a jira client
+    /// Creates a new instance of a jira client
     pub fn new<H>(host: H, credentials: Credentials) -> Result<Jira>
     where
         H: Into<String>,
@@ -69,7 +69,7 @@ impl Jira {
         })
     }
 
-    /// creates a new instance of a jira client using a specified reqwest client
+    /// Creates a new instance of a jira client using a specified reqwest client
     pub fn from_client<H>(host: H, credentials: Credentials, client: Client) -> Result<Jira>
     where
         H: Into<String>,
@@ -81,7 +81,7 @@ impl Jira {
         })
     }
 
-    /// return transitions interface
+    /// Return transitions interface
     pub fn transitions<K>(&self, key: K) -> Transitions
     where
         K: Into<String>,
@@ -89,24 +89,31 @@ impl Jira {
         Transitions::new(self, key)
     }
 
-    /// return search interface
+    /// Return search interface
     pub fn search(&self) -> Search {
         Search::new(self)
     }
 
-    // return issues interface
+    // Return issues interface
     pub fn issues(&self) -> Issues {
         Issues::new(self)
     }
 
-    // return boards interface
+    // Return boards interface
     pub fn boards(&self) -> Boards {
         Boards::new(self)
     }
 
-    // return boards interface
+    // Return boards interface
     pub fn sprints(&self) -> Sprints {
         Sprints::new(self)
+    }
+
+    fn get<D>(&self, api_name: &str, endpoint: &str) -> Result<D>
+    where
+        D: DeserializeOwned,
+    {
+        self.request::<D>(Method::GET, api_name, endpoint, None)
     }
 
     fn post<D, S>(&self, api_name: &str, endpoint: &str, body: S) -> Result<D>
@@ -119,11 +126,14 @@ impl Jira {
         self.request::<D>(Method::POST, api_name, endpoint, Some(data.into_bytes()))
     }
 
-    fn get<D>(&self, api_name: &str, endpoint: &str) -> Result<D>
+    fn put<D, S>(&self, api_name: &str, endpoint: &str, body: S) -> Result<D>
     where
         D: DeserializeOwned,
+        S: Serialize,
     {
-        self.request::<D>(Method::GET, api_name, endpoint, None)
+        let data = serde_json::to_string::<S>(&body)?;
+        debug!("Json request: {}", data);
+        self.request::<D>(Method::PUT, api_name, endpoint, Some(data.into_bytes()))
     }
 
     fn request<D>(
