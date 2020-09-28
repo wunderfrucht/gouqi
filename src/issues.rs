@@ -14,32 +14,32 @@ pub struct Issues {
     jira: Jira,
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Assignee {
     pub name: String,
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct IssueType {
     pub id: String,
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Priority {
     pub id: String,
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Project {
     pub key: String,
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Component {
     pub name: String,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Fields {
     pub assignee: Assignee,
@@ -53,14 +53,14 @@ pub struct Fields {
     pub summary: String,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct CreateIssue {
     pub fields: Fields,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct CreateCustomIssue<CustomFields> {
-    pub fields: CustomFields
+    pub fields: CustomFields,
 }
 
 #[derive(Debug, Deserialize)]
@@ -71,7 +71,7 @@ pub struct CreateResponse {
     pub url: String,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct EditIssue<T: Serialize> {
     pub fields: BTreeMap<String, T>,
 }
@@ -115,7 +115,10 @@ impl Issues {
     ///
     /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/latest/#api/2/issue-createIssue)
     /// for more information
-    pub fn create_from_custom_issue<T: serde::Serialize>(&self, data: CreateCustomIssue<T>) -> Result<CreateResponse> {
+    pub fn create_from_custom_issue<T: serde::Serialize>(
+        &self,
+        data: CreateCustomIssue<T>,
+    ) -> Result<CreateResponse> {
         self.jira.post("api", "/issue", data)
     }
 
