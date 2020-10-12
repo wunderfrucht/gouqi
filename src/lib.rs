@@ -17,6 +17,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 mod builder;
+pub mod components;
 mod errors;
 pub mod issues;
 mod rep;
@@ -24,6 +25,7 @@ mod search;
 mod transitions;
 
 pub use crate::builder::*;
+pub use crate::components::*;
 pub use crate::errors::*;
 pub use crate::issues::*;
 pub use crate::rep::*;
@@ -97,6 +99,11 @@ impl Jira {
     // Return issues interface
     pub fn issues(&self) -> Issues {
         Issues::new(self)
+    }
+
+    // Return components interface
+    pub fn components(&self) -> Components {
+        Components::new(self)
     }
 
     // Return boards interface
