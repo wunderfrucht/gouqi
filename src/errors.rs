@@ -57,7 +57,9 @@ impl ::std::fmt::Display for Error {
                 ref code,
                 ref errors,
             } => writeln!(f, "Jira Client Error ({}):\n{:#?}", code, errors),
-            _ => writeln!(f, "Could not connect to Jira: {:?}!", self),
+            Unauthorized => writeln!(f, "Could not connect to Jira: Unauthorized"),
+            MethodNotAllowed => writeln!(f, "Jira request error: MethodNotAllowed"),
+            NotFound => writeln!(f, "Jira request error: NotFound"),
         }
     }
 }
