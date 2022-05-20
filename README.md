@@ -42,7 +42,7 @@ fn main() {
             Err(err) => panic!("{:#?}", err),
         }
     } else {
-        error!("Missing environment variable JIRA_HOST!");
+        error!("Missing environment variable JIRA_HOST!")
     }
 }
 ```
