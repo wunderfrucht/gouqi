@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0
+
+* Additional switches for time conversion. Needs switch to higher version as the semver versioning got broken.
+
 ## 0.3.1
 
 * Use ISO8601 for time conversion [#17](https://github.com/wunderfrucht/gouqi/issues/17)
