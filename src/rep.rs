@@ -157,7 +157,6 @@ impl Issue {
     pub fn comment(&self) -> Vec<Comment> {
         self.field::<Vec<Comment>>("comment")
             .and_then(|value| value.ok())
-            .map(|value| value)
             .unwrap_or_default()
     }
 

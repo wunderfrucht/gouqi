@@ -219,7 +219,7 @@ impl Jira {
     {
         let url = self
             .host
-            .join(&format!("rest/{}/latest{}", api_name, endpoint))?;
+            .join(&format!("rest/{api_name}/latest{endpoint}"))?;
         debug!("url -> {:?}", url);
 
         let mut req = self

@@ -27,7 +27,7 @@ fn main() {
         let sprints = Sprints::new(&jira);
 
         match sprints.get(sprint_id) {
-            Ok(sprint) => println!("{:?}", sprint),
+            Ok(sprint) => println!("{sprint:?}"),
             e => error!("{:?}", e),
         }
     } else {
