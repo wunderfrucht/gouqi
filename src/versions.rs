@@ -15,7 +15,7 @@ impl Versions {
     /// for more information
     pub fn project_versions(&self, project_id_or_key: &str) -> Result<Vec<Version>> {
         self.jira
-            .get("api", &format!("/project/{}/versions", project_id_or_key))
+            .get("api", &format!("/project/{project_id_or_key}/versions"))
     }
 
     /// Create a new version

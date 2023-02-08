@@ -24,7 +24,7 @@ fn main() {
         println!("{:#?}", jira.issues().get(key.clone()));
         let transitions = jira.transitions(key);
         if let Ok(option) = transitions.list() {
-            println!("{:#?}", option);
+            println!("{option:#?}");
         }
         if let Ok(transition_id) = env::var("JIRA_TRANSITION_ID") {
             transitions

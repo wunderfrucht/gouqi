@@ -70,7 +70,7 @@ impl Sprints {
     /// See this [jira docs](https://docs.atlassian.com/jira-software/REST/latest/#agile/1.0/sprint-moveIssuesToSprint)
     /// for more information
     pub fn move_issues(&self, sprint_id: u64, issues: Vec<String>) -> Result<EmptyResponse> {
-        let path = format!("/sprint/{}/issue", sprint_id);
+        let path = format!("/sprint/{sprint_id}/issue");
         let data = MoveIssues { issues };
 
         self.jira.post("agile", &path, data)

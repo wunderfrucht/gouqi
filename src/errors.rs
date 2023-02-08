@@ -59,14 +59,14 @@ impl ::std::fmt::Display for Error {
         use crate::Error::*;
 
         match *self {
-            Http(ref e) => writeln!(f, "HTTP Error: {}", e),
-            IO(ref e) => writeln!(f, "IO Error: {}", e),
-            Serde(ref e) => writeln!(f, "Serialization Error: {}", e),
+            Http(ref e) => writeln!(f, "HTTP Error: {e}"),
+            IO(ref e) => writeln!(f, "IO Error: {e}"),
+            Serde(ref e) => writeln!(f, "Serialization Error: {e}"),
             Fault {
                 ref code,
                 ref errors,
-            } => writeln!(f, "Jira Client Error ({}):\n{:#?}", code, errors),
-            ParseError(ref e) => writeln!(f, "Could not connect to Jira: {:?}!", e),
+            } => writeln!(f, "Jira Client Error ({code}):\n{errors:#?}"),
+            ParseError(ref e) => writeln!(f, "Could not connect to Jira: {e:?}!"),
             Unauthorized => writeln!(f, "Could not connect to Jira: Unauthorized"),
             MethodNotAllowed => writeln!(f, "Jira request error: MethodNotAllowed"),
             NotFound => writeln!(f, "Jira request error: NotFound"),
