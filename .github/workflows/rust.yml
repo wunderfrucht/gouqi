@@ -27,21 +27,10 @@ jobs:
 
   semver-check:
     runs-on: ubuntu-latest
-    steps:
+    steps:   
       - uses: actions/checkout@v3
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-      - name: Install semver
-        run: rustup install nightly-2022-08-03 &&
-          rustup component add rustc-dev llvm-tools-preview --toolchain nightly-2022-08-03 &&
-          cargo +nightly-2022-08-03 install --git https://github.com/rust-lang/rust-semverver
-      - name: Enable cache
-        uses: Swatinem/rust-cache@v2
-      - name: Run semver
-        run: cargo semver | tee semver_out
+      - name: Check semver
+        uses: obi1kenobi/cargo-semver-checks-action@v1      
     # Until it is running, keep it as is
     continue-on-error: true
 
