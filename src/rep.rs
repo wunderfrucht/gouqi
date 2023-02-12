@@ -251,7 +251,7 @@ pub struct HistoryItem {
     pub to_string: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Project {
     pub id: String,
     pub key: String,
@@ -343,7 +343,7 @@ pub struct Status {
     pub self_link: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Priority {
     pub icon_url: String,
     pub id: String,
@@ -352,7 +352,7 @@ pub struct Priority {
     pub self_link: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IssueType {
     pub description: String,
     #[serde(rename = "iconUrl")]
