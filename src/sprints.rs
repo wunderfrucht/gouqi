@@ -2,6 +2,7 @@
 
 // Third party
 use time::OffsetDateTime;
+use tracing::info;
 use url::form_urlencoded;
 
 // Ours
@@ -33,6 +34,13 @@ pub struct Sprint {
     pub origin_board_id: Option<u64>,
 }
 
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+struct CreateSprint {
+    pub name: String,
+    #[serde(rename = "originBoardId")]
+    pub origin_board_id: Option<u64>,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct SprintResults {
     #[serde(rename = "maxResults")]
@@ -52,6 +60,21 @@ struct MoveIssues {
 impl Sprints {
     pub fn new(jira: &Jira) -> Sprints {
         Sprints { jira: jira.clone() }
+    }
+
+    /// Create a new sprint
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/jira-software/REST/9.5.0/#agile/1.0/sprint-createSprint)
+    /// for more information
+    ///     pub fn create<T: Into<String>>(&self, project_id: u64, name: T) -> Result<Version> {
+
+    pub fn create<T: Into<String>>(&self, board: Board, name: T) -> Result<Sprint> {
+        let data: CreateSprint = CreateSprint {
+            name: name.into(),
+            origin_board_id: Some(board.id),
+        };
+        info!("{:?}", data);
+        self.jira.post("agile", "/sprint", data)
     }
 
     /// Get a single sprint

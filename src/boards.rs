@@ -19,6 +19,26 @@ pub struct Board {
     pub name: String,
     #[serde(rename = "type")]
     pub type_name: String,
+    pub location: Location,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct Location {
+    #[serde(rename = "projectId")]
+    pub project_id: Option<u64>,
+    #[serde(rename = "userId")]
+    pub user_id: Option<u64>,
+    #[serde(rename = "userAccountId")]
+    pub user_account_id: Option<String>,
+    #[serde(rename = "displayName")]
+    pub display_name: Option<String>,
+    #[serde(rename = "projectName")]
+    pub project_name: Option<String>,
+    #[serde(rename = "projectKey")]
+    pub project_key: Option<String>,
+    #[serde(rename = "projectTypeKey")]
+    pub project_type_key: Option<String>,
+    pub name: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
