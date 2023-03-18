@@ -9,7 +9,8 @@ fn deserialise_board() {
         "id": 1,
         "self": "https://my.atlassian.net/rest/agile/1.0/board/1",
         "name": "TEST board",
-        "type": "kanban"
+        "type": "kanban",
+        "location": {}
     }"#;
 
     let board: Board = serde_json::from_str(board_str).unwrap();
@@ -34,7 +35,8 @@ fn deserialise_board_results() {
             "id": 1,
             "self": "https://my.atlassian.net/rest/agile/1.0/board/1",
             "name": "TEST board",
-            "type": "kanban"
+            "type": "kanban",
+            "location": {}
         }]
     }"#;
 
