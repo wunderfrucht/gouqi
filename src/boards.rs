@@ -11,7 +11,7 @@ pub struct Boards {
     jira: Jira,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Copy)]
 pub struct Board {
     #[serde(rename = "self")]
     pub self_link: String,
