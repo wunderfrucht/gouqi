@@ -19,7 +19,7 @@ pub struct Board {
     pub name: String,
     #[serde(rename = "type")]
     pub type_name: String,
-    pub location: Location,
+    pub location: Option<Location>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
