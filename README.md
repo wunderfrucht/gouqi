@@ -15,7 +15,7 @@ Add the following to your `Cargo.toml` file
 
 ```toml
 [dependencies]
-gouqi = "0.4"
+gouqi = "0.5"
 ```
 
 ## usage
