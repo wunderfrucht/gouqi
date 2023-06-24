@@ -66,7 +66,7 @@ impl Sprints {
     ///
     /// See this [jira docs](https://docs.atlassian.com/jira-software/REST/9.5.0/#agile/1.0/sprint-createSprint)
     /// for more information
-    ///     pub fn create<T: Into<String>>(&self, project_id: u64, name: T) -> Result<Version> {
+    ///     `pub fn create<T: Into<String>>(&self, project_id: u64, name: T) -> Result<Version> {`
 
     pub fn create<T: Into<String>>(&self, board: Board, name: T) -> Result<Sprint> {
         let data: CreateSprint = CreateSprint {
