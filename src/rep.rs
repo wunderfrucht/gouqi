@@ -345,6 +345,7 @@ pub struct Status {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Priority {
+    #[serde(rename = "iconUrl")]
     pub icon_url: String,
     pub id: String,
     pub name: String,
