@@ -1,4 +1,4 @@
-//! Gouqi provides an interface for Jira's REST api
+//! Provides an interface for interacting with Jira's REST API.
 
 extern crate reqwest;
 extern crate serde;
@@ -48,9 +48,29 @@ pub use crate::versions::*;
 #[derive(Deserialize, Debug)]
 pub struct EmptyResponse;
 
+/// Result type returned by Jira client methods.
+///
+/// Wraps a `Result` with Jira API errors.
+///
+/// # Examples
+///
+/// ```
+/// let result: Result<Issue> = jira.get_issue("ABC-123");
+/// ```
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Types of authentication credentials
+///
+/// # Notes
+///
+/// - Personal Access Tokens should be used with [`Credentials::Basic`]
+///   and *not* [`Credentials::Bearer`].
+///
+/// # Examples
+///
+/// ```
+/// let basic = Credentials::Basic("user".into(), "token".into());  
+/// let bearer = Credentials::Bearer("token".into());
+/// ```
 ///
 /// # Notes
 ///
@@ -79,7 +99,16 @@ impl Credentials {
     }
 }
 
-/// Entrypoint into client interface
+/// Entry point for interacting with the Jira API.
+///
+/// Wraps a configured HTTP client.
+///
+/// # Examples
+///
+/// ```
+/// let jira = Jira::new("https://jira.example.com", Credentials::Anonymous);
+/// ```
+///
 /// <https://docs.atlassian.com/jira/REST/latest/>
 #[derive(Clone, Debug)]
 pub struct Jira {
@@ -89,7 +118,18 @@ pub struct Jira {
 }
 
 impl Jira {
-    /// Creates a new instance of a jira client
+    /// Creates a new Jira client instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `host` - Base URL of the Jira instance
+    /// * `credentials` - Credentials to use
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let jira = Jira::new("https://jira.example.com", Credentials::Anonymous);  
+    /// ```
     pub fn new<H>(host: H, credentials: Credentials) -> Result<Jira>
     where
         H: Into<String>,
@@ -127,13 +167,25 @@ impl Jira {
         Transitions::new(self, key)
     }
 
-    /// Return search interface
+    /// Returns a `Search` instance for executing JQL queries.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let search = jira.search();
+    /// ```
     #[tracing::instrument]
     pub fn search(&self) -> Search {
         Search::new(self)
     }
 
-    // Return issues interface
+    /// Returns an `Issues` instance for working with issues.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let issues = jira.issues();
+    /// ```  
     #[tracing::instrument]
     pub fn issues(&self) -> Issues {
         Issues::new(self)
