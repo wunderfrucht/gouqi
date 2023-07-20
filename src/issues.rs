@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use url::form_urlencoded;
 
 // Ours
-use crate::{Board, Comment, Issue, Jira, Result, SearchOptions};
+use crate::{Board, Comment, Issue, IssueType, Jira, Priority, Project, Result, SearchOptions};
 
 /// Issue options
 #[derive(Debug)]
@@ -17,21 +17,6 @@ pub struct Issues {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Assignee {
     pub name: String,
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct IssueType {
-    pub id: String,
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct Priority {
-    pub id: String,
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct Project {
-    pub key: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
