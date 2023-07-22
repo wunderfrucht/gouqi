@@ -171,7 +171,7 @@ impl Jira {
     }
 
     #[tracing::instrument]
-    fn delete<D>(&self, api_name: &str, endpoint: &str) -> Result<D>
+    pub fn delete<D>(&self, api_name: &str, endpoint: &str) -> Result<D>
     where
         D: DeserializeOwned,
     {
@@ -179,14 +179,14 @@ impl Jira {
     }
 
     #[tracing::instrument]
-    fn get<D>(&self, api_name: &str, endpoint: &str) -> Result<D>
+    pub fn get<D>(&self, api_name: &str, endpoint: &str) -> Result<D>
     where
         D: DeserializeOwned,
     {
         self.request::<D>(Method::GET, api_name, endpoint, None)
     }
 
-    fn post<D, S>(&self, api_name: &str, endpoint: &str, body: S) -> Result<D>
+    pub fn post<D, S>(&self, api_name: &str, endpoint: &str, body: S) -> Result<D>
     where
         D: DeserializeOwned,
         S: Serialize,
@@ -196,7 +196,7 @@ impl Jira {
         self.request::<D>(Method::POST, api_name, endpoint, Some(data.into_bytes()))
     }
 
-    fn put<D, S>(&self, api_name: &str, endpoint: &str, body: S) -> Result<D>
+    pub fn put<D, S>(&self, api_name: &str, endpoint: &str, body: S) -> Result<D>
     where
         D: DeserializeOwned,
         S: Serialize,
