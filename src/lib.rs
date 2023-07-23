@@ -1,5 +1,3 @@
-//! Gouqi provides an interface for Jira's REST api
-
 extern crate reqwest;
 extern crate serde;
 extern crate tracing;
@@ -170,6 +168,26 @@ impl Jira {
         self.get("auth", "/session")
     }
 
+    /// Sends a DELETE request using the Jira client.
+    ///
+    /// # Arguments
+    ///
+    /// * `api_name` - Name of the API: like "agile" or "api"
+    /// * `endpoint` - API endpoint path
+    ///
+    /// # Returns  
+    ///
+    /// `Result<D>` - Response deserialized into type `D`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use gouqi::EmptyResponse;
+    /// # use gouqi::Credentials;
+    /// # use gouqi::Jira;
+    /// # let jira = Jira::new("http://localhost".to_string(), Credentials::Anonymous).unwrap();
+    /// let response = jira.delete::<EmptyResponse>("api", "/endpoint");
+    /// ```
     #[tracing::instrument]
     pub fn delete<D>(&self, api_name: &str, endpoint: &str) -> Result<D>
     where
@@ -178,6 +196,26 @@ impl Jira {
         self.request::<D>(Method::DELETE, api_name, endpoint, None)
     }
 
+    /// Sends a GET request using the Jira client.
+    ///
+    /// # Arguments
+    ///
+    /// * `api_name` - Name of the API: like "agile" or "api"
+    /// * `endpoint` - API endpoint path
+    ///
+    /// # Returns  
+    ///
+    /// `Result<D>` - Response deserialized into type `D`
+    ///
+    /// # Examples
+    ///
+    /// ```rust    
+    /// # use gouqi::EmptyResponse;
+    /// # use gouqi::Credentials;
+    /// # use gouqi::Jira;
+    /// # let jira = Jira::new("http://localhost".to_string(), Credentials::Anonymous).unwrap();
+    /// let response = jira.get::<EmptyResponse>("api", "/endpoint");
+    /// ```
     #[tracing::instrument]
     pub fn get<D>(&self, api_name: &str, endpoint: &str) -> Result<D>
     where
@@ -186,6 +224,31 @@ impl Jira {
         self.request::<D>(Method::GET, api_name, endpoint, None)
     }
 
+    /// Sends a POST request using the Jira client.
+    ///
+    /// # Arguments
+    ///
+    /// * `api_name` - Name of the API: like "agile" or "api"
+    /// * `endpoint` - API endpoint path
+    ///
+    /// # Returns  
+    ///
+    /// `Result<D>` - Response deserialized into type `D`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use gouqi::EmptyResponse;
+    /// # use serde::Serialize;
+    /// # use gouqi::Credentials;
+    /// # use gouqi::Jira;
+    /// #[derive(Serialize, Debug, Default)]
+    /// struct EmptyBody;
+    ///
+    /// # let jira = Jira::new("http://localhost".to_string(), Credentials::Anonymous).unwrap();
+    /// let body = EmptyBody::default();
+    /// let response = jira.post::<EmptyResponse, EmptyBody>("api", "/endpoint", body);
+    /// ```
     pub fn post<D, S>(&self, api_name: &str, endpoint: &str, body: S) -> Result<D>
     where
         D: DeserializeOwned,
@@ -196,6 +259,31 @@ impl Jira {
         self.request::<D>(Method::POST, api_name, endpoint, Some(data.into_bytes()))
     }
 
+    /// Sends a PUT request using the Jira client.
+    ///
+    /// # Arguments
+    ///
+    /// * `api_name` - Name of the API: like "agile" or "api"
+    /// * `endpoint` - API endpoint path
+    ///
+    /// # Returns  
+    ///
+    /// `Result<D>` - Response deserialized into type `D`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use gouqi::EmptyResponse;
+    /// # use serde::Serialize;
+    /// # use gouqi::Credentials;
+    /// # use gouqi::Jira;
+    /// #[derive(Serialize, Debug, Default)]
+    /// struct EmptyBody;
+    ///
+    /// # let jira = Jira::new("http://localhost".to_string(), Credentials::Anonymous).unwrap();
+    /// let body = EmptyBody::default();
+    /// let response = jira.put::<EmptyResponse, EmptyBody>("api", "/endpoint", body);
+    /// ```
     pub fn put<D, S>(&self, api_name: &str, endpoint: &str, body: S) -> Result<D>
     where
         D: DeserializeOwned,
