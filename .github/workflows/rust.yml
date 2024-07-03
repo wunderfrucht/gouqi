@@ -15,11 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: stable
-          override: true
       - name: Enable cache
         uses: Swatinem/rust-cache@v2
       - run: cargo install cargo-checkmate
@@ -39,10 +37,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
-          override: true
       - name: Install udeps
         run: cargo install cargo-udeps
       - name: Enable cache
@@ -73,10 +70,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          override: true
       - name: Enable cache
         uses: Swatinem/rust-cache@v2
       - name: Run cargo-tarpaulin
