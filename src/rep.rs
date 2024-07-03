@@ -154,10 +154,9 @@ impl Issue {
             .unwrap_or_default()
     }
 
-    pub fn comment(&self) -> Vec<Comment> {
-        self.field::<Vec<Comment>>("comment")
+    pub fn comments(&self) -> Option<Comments> {
+        self.field::<Comments>("comment")
             .and_then(|value| value.ok())
-            .unwrap_or_default()
     }
 
     pub fn parent(&self) -> Option<Issue> {
@@ -203,6 +202,18 @@ pub struct Attachment {
     pub mime_type: String,
     pub content: String,
     pub thumbnail: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Comments {
+    pub comments: Vec<Comment>,
+    #[serde(rename = "self")]
+    pub self_link: String,
+    #[serde(rename = "maxResults")]
+    pub max_results: u32,
+    pub total: u32,
+    #[serde(rename = "startAt")]
+    pub start_at: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
