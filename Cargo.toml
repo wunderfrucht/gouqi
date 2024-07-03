@@ -1,6 +1,6 @@
 [package]
 name = "gouqi"
-version = "0.7.1"
+version = "0.8.0"
 authors = ["softprops <d.tangren@gmail.com>", "avrabe <ralf_beier@me.com>"]
 description = "Rust interface for Jira"
 documentation = "https://docs.rs/gouqi"
@@ -12,21 +12,21 @@ readme = "README.md"
 edition = "2021"
 
 [dev-dependencies]
-tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 skeptic = "0.13"
-mockito = "1.1.0"
+mockito = "1.4.0"
 
 [build-dependencies]
 skeptic = "0.13"
 
 [dependencies]
 tracing = "0.1.37"
-reqwest = { version = "0.12.0", default_features = false, features = [
+reqwest = { version = "0.12", default-features = false, features = [
     "blocking",
     "rustls-tls",
 ] }
-serde = "1.0.137"
-serde_derive = "1.0.137"
-serde_json = "1.0.82"
-url = "2.3.1"
-time = { version = "0.3.17", features = ['serde-well-known', 'macros'] }
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+url = "2.5"
+time = { version = "0.3", features = ['serde-well-known', 'macros'] }

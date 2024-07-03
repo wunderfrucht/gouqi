@@ -26,7 +26,7 @@ Basic usage requires a jira host, and a flavor of `jira::Credentials` for author
 
 Current support api support is limited to search and issue transitioning.
 
-```rust
+```rust,skeptic-template
 extern crate gouqi;
 
 use gouqi::{Credentials, Jira};

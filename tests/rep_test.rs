@@ -13,7 +13,8 @@ fn issue_getters() {
         "id": "1234",
         "key": "MYPROJ-1234",
         "fields": {
-            "comment": [
+            "comment": {
+             "comments": [
                 {
                     "self": "http://www.example.com/jira/rest/api/2/issue/10010/comment/10000",
                     "id": "10000",
@@ -38,6 +39,11 @@ fn issue_getters() {
                     }
                 }
             ],
+            "self": "https://www.example.com/rest/api/2/issue/10000/comment",
+            "maxResults": 2,
+            "total": 2,
+            "startAt": 0
+            },
             "resolutiondate": "2018-07-11T16:56:12.000+0000",
             "created": "2018-07-11T10:56:12.000Z",
             "updated": "2018-07-11T12:56:12.000+00:00"
@@ -59,6 +65,12 @@ fn issue_getters() {
     assert_eq!(issue.resolution_date(), expected_resolution_date);
     assert_eq!(issue.created(), expected_created_date);
     assert_eq!(issue.updated(), expected_updated_date);
-    assert_ne!(issue.comment().len(), empty_comments.len());
-    assert_eq!(issue.comment()[0].created, expected_comment_updated_date);
+    assert_ne!(
+        issue.comments().unwrap().comments.len(),
+        empty_comments.len()
+    );
+    assert_eq!(
+        issue.comments().unwrap().comments[0].created,
+        expected_comment_updated_date
+    );
 }
