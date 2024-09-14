@@ -24,7 +24,6 @@ pub struct Issue {
     pub key: String,
     pub id: String,
     pub fields: BTreeMap<String, ::serde_json::Value>,
-    pub changelog: Option<Changelog>,
 }
 
 impl Issue {
@@ -241,6 +240,7 @@ pub struct Visibility {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Changelog {
+    #[serde(rename = "values")]
     pub histories: Vec<History>,
 }
 

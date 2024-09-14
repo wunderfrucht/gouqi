@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use url::form_urlencoded;
 
 // Ours
-use crate::{Board, Comment, Issue, IssueType, Jira, Priority, Project, Result, SearchOptions};
+use crate::{Board, Changelog, Comment, Issue, IssueType, Jira, Priority, Project, Result, SearchOptions};
 
 /// Issue options
 #[derive(Debug)]
@@ -187,6 +187,18 @@ impl Issues {
             data,
         )
     }
+
+    pub fn changelog<K>(&self, key: K) -> Result<Changelog> 
+    where
+    K: Into<String>,
+    {
+        self.jira.get(
+            "api",
+            format!("/issue/{}/changelog", key.into()).as_ref(),
+        )
+    }
+
+
 }
 
 /// Provides an iterator over multiple pages of search results
