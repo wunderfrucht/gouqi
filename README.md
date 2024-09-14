@@ -1,4 +1,4 @@
-# gouji
+# gouqi
 
 [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
 [![Released API docs](https://img.shields.io/docsrs/gouqi/latest)](http://docs.rs/gouqi)
