@@ -52,6 +52,19 @@ fn main() {
 }
 ```
 
+## Commiting a PR
+
+Please make sure to run `cargo fmt`, `cargo test` and `cargo clippy` before committing.
+New code should contains tests.
+Commits to follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
+
+Changelog is generated using [git cliff](https://github.com/orhun/git-cliff)
+
+```sh
+cargo install git-cliff
+git cliff -o --use-branch-tags
+```
+
 ## what's with the name
 
 Jira's name is a [shortened form of gojira](https://en.wikipedia.org/wiki/Jira_(software)),
