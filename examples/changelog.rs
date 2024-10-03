@@ -45,7 +45,6 @@ fn main() {
                     }
                     println!()
                 }
-
             }
             e => error!("{:?}", e),
         }
