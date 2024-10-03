@@ -2,11 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.9.0] - 2024-10-03
+
+### 🚀 Features
+
+- *(release)* Move to git cliff to generate the CHANGELOG.md
+- *(changelog)* Added test for the changes on the changelog
 
 ### 🐛 Bug Fixes
 
 - Fixing typo in README
+- Remove the deprecated keys in cargo deny deny.toml
+
+### 📚 Documentation
+
+- Adds instructions when creating a PR
 
 ## [0.8.0] - 2024-07-03
 
