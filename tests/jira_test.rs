@@ -114,7 +114,7 @@ fn jira_http_post() {
         .create();
 
     let jira = Jira::new(url, Credentials::Anonymous).unwrap();
-    let body = EmptyBody::default();
+    let body = EmptyBody;
     jira.post::<EmptyResponse, EmptyBody>("api", "/endpoint", body)
         .unwrap();
     mock.assert();
@@ -134,7 +134,7 @@ fn jira_http_put() {
         .create();
 
     let jira = Jira::new(url, Credentials::Anonymous).unwrap();
-    let body = EmptyBody::default();
+    let body = EmptyBody;
     jira.put::<EmptyResponse, EmptyBody>("api", "/endpoint", body)
         .unwrap();
     mock.assert();

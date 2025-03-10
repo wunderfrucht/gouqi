@@ -6,9 +6,17 @@ use std::collections::BTreeMap;
 use url::form_urlencoded;
 
 // Ours
+use crate::sync::Jira;
 use crate::{
-    Board, Changelog, Comment, Issue, IssueType, Jira, Priority, Project, Result, SearchOptions,
+    Board, Changelog, Comment, Issue, IssueType, Priority, Project, Result, SearchOptions,
 };
+
+#[cfg(feature = "async")]
+use futures::stream::Stream;
+#[cfg(feature = "async")]
+use futures::Future;
+#[cfg(feature = "async")]
+use std::pin::Pin;
 
 /// Issue options
 #[derive(Debug)]
@@ -224,7 +232,7 @@ impl<'a> IssuesIter<'a> {
     }
 }
 
-impl<'a> Iterator for IssuesIter<'a> {
+impl Iterator for IssuesIter<'_> {
     type Item = Issue;
     fn next(&mut self) -> Option<Issue> {
         self.results.issues.pop().or_else(|| {
@@ -248,5 +256,183 @@ impl<'a> Iterator for IssuesIter<'a> {
                 None
             }
         })
+    }
+}
+
+#[cfg(feature = "async")]
+/// Async version of the Issues interface
+#[derive(Debug)]
+pub struct AsyncIssues {
+    jira: crate::r#async::Jira,
+}
+
+#[cfg(feature = "async")]
+impl AsyncIssues {
+    pub fn new(jira: &crate::r#async::Jira) -> Self {
+        AsyncIssues { jira: jira.clone() }
+    }
+
+    /// Get a single issue
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/jira-software/REST/latest/#agile/1.0/issue)
+    /// for more information
+    pub async fn get<I>(&self, id: I) -> Result<Issue>
+    where
+        I: Into<String>,
+    {
+        self.jira.get("api", &format!("/issue/{}", id.into())).await
+    }
+
+    /// Create a new issue
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/latest/#api/2/issue-createIssue)
+    /// for more information
+    pub async fn create(&self, data: CreateIssue) -> Result<CreateResponse> {
+        self.jira.post("api", "/issue", data).await
+    }
+
+    /// Edit an issue
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/latest/#api/2/issue-editIssue)
+    /// for more information
+    pub async fn edit<I, T>(&self, id: I, data: EditIssue<T>) -> Result<()>
+    where
+        I: Into<String>,
+        T: Serialize,
+    {
+        self.jira
+            .put("api", &format!("/issue/{}", id.into()), data)
+            .await
+    }
+
+    /// Returns a single page of issue results
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/jira-software/REST/latest/#agile/1.0/board-getIssuesForBoard)
+    /// for more information
+    pub async fn list(&self, board: &Board, options: &SearchOptions) -> Result<IssueResults> {
+        let mut path = vec![format!("/board/{}/issue", board.id)];
+        let query_options = options.serialize().unwrap_or_default();
+        let query = form_urlencoded::Serializer::new(query_options).finish();
+
+        path.push(query);
+
+        self.jira
+            .get::<IssueResults>("agile", path.join("?").as_ref())
+            .await
+    }
+
+    /// Return a stream which yields issues from consecutive pages of results
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/jira-software/REST/latest/#agile/1.0/board-getIssuesForBoard)
+    /// for more information
+    pub async fn stream<'a>(
+        &'a self,
+        board: &'a Board,
+        options: &'a SearchOptions,
+    ) -> Result<impl Stream<Item = Issue> + 'a> {
+        let initial_results = self.list(board, options).await?;
+
+        let stream = AsyncIssuesStream {
+            jira: self,
+            board,
+            search_options: options,
+            current_results: initial_results,
+            current_index: 0,
+        };
+
+        Ok(stream)
+    }
+
+    pub async fn comment<K>(&self, key: K, data: AddComment) -> Result<Comment>
+    where
+        K: Into<String>,
+    {
+        self.jira
+            .post(
+                "api",
+                format!("/issue/{}/comment", key.into()).as_ref(),
+                data,
+            )
+            .await
+    }
+
+    pub async fn changelog<K>(&self, key: K) -> Result<Changelog>
+    where
+        K: Into<String>,
+    {
+        self.jira
+            .get("api", format!("/issue/{}/changelog", key.into()).as_ref())
+            .await
+    }
+}
+
+#[cfg(feature = "async")]
+struct AsyncIssuesStream<'a> {
+    jira: &'a AsyncIssues,
+    board: &'a Board,
+    search_options: &'a SearchOptions,
+    current_results: IssueResults,
+    current_index: usize,
+}
+
+#[cfg(feature = "async")]
+impl Stream for AsyncIssuesStream<'_> {
+    type Item = Issue;
+
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        use std::task::Poll;
+
+        // If we still have issues in the current page
+        if self.current_index < self.current_results.issues.len() {
+            let issue = self.current_results.issues[self.current_index].clone();
+            self.current_index += 1;
+            return Poll::Ready(Some(issue));
+        }
+
+        // Check if we need to fetch the next page
+        let more_pages = (self.current_results.start_at + self.current_results.max_results)
+            <= self.current_results.total;
+
+        if more_pages {
+            // Create a future to fetch the next page
+            let jira = self.jira;
+            let board = self.board;
+            let next_options = self
+                .search_options
+                .as_builder()
+                .max_results(self.current_results.max_results)
+                .start_at(self.current_results.start_at + self.current_results.max_results)
+                .build();
+
+            let future = async move { jira.list(board, &next_options).await };
+
+            // Poll the future
+            let mut future = Box::pin(future);
+            match future.as_mut().poll(cx) {
+                Poll::Ready(Ok(new_results)) => {
+                    // No results in the new page
+                    if new_results.issues.is_empty() {
+                        return Poll::Ready(None);
+                    }
+
+                    // Update state with new results
+                    self.current_results = new_results;
+                    self.current_index = 0;
+
+                    // Return the first issue from the new page
+                    let issue = self.current_results.issues[0].clone();
+                    self.current_index = 1;
+                    Poll::Ready(Some(issue))
+                }
+                Poll::Ready(Err(_)) => Poll::Ready(None),
+                Poll::Pending => Poll::Pending,
+            }
+        } else {
+            // No more pages
+            Poll::Ready(None)
+        }
     }
 }

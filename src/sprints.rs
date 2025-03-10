@@ -67,7 +67,6 @@ impl Sprints {
     /// See this [jira docs](https://docs.atlassian.com/jira-software/REST/9.5.0/#agile/1.0/sprint-createSprint)
     /// for more information
     ///     `pub fn create<T: Into<String>>(&self, project_id: u64, name: T) -> Result<Version> {`
-
     pub fn create<T: Into<String>>(&self, board: Board, name: T) -> Result<Sprint> {
         let data: CreateSprint = CreateSprint {
             name: name.into(),
@@ -152,7 +151,7 @@ impl<'a> SprintsIter<'a> {
     }
 }
 
-impl<'a> Iterator for SprintsIter<'a> {
+impl Iterator for SprintsIter<'_> {
     type Item = Sprint;
     fn next(&mut self) -> Option<Sprint> {
         self.results.values.pop().or_else(|| {

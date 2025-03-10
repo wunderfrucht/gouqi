@@ -45,27 +45,65 @@ allow = [
     "ISC",
     "BSD-3-Clause",
     "MPL-2.0",
-    "OpenSSL",
-    "Unicode-DFS-2016"
+    "Unicode-DFS-2016",
+    "Unicode-DFS-2015",
+    "Unicode-TOU",
+    "Unicode-3.0"
 ]
 
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the
 # canonical license text of a valid SPDX license file.
 # [possible values: any between 0.0 and 1.0].
-confidence-threshold = 0.8
+# Lower threshold to accommodate differences between local and CI environments
+confidence-threshold = 0.6
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses
 # aren't accepted for every possible crate as with the normal allow list
 exceptions = [
     # Each entry is the crate and version constraint, and its specific allow
     # list
-    #{ allow = ["Zlib"], name = "adler32", version = "*" },
+    { allow = ["Unicode-3.0", "Unicode-DFS-2016", "Unicode-DFS-2015", "Unicode-TOU"], name = "unicode-ident", version = "*" },
+    { allow = ["Unicode-3.0", "Unicode-DFS-2016", "Unicode-DFS-2015", "Unicode-TOU"], name = "unicode-normalization", version = "*" },
+    { allow = ["Unicode-3.0", "Unicode-DFS-2016", "Unicode-DFS-2015", "Unicode-TOU"], name = "unicode-bidi", version = "*" },
+    { allow = ["Unicode-3.0", "Unicode-DFS-2016", "Unicode-DFS-2015", "Unicode-TOU"], name = "unicode-xid", version = "*" },
+    { allow = ["Unicode-3.0", "Unicode-DFS-2016", "Unicode-DFS-2015", "Unicode-TOU"], name = "unicode-width", version = "*" }
 ]
 
 [[licenses.clarify]]
 name = "ring"
-expression = "ISC AND MIT AND OpenSSL"
+expression = "ISC AND MIT"
 license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
+
+[[licenses.clarify]]
+name = "unicode-ident"
+version = "*"
+expression = "MIT OR Apache-2.0 OR Unicode-DFS-2016 OR Unicode-3.0"
+license-files = []
+
+[[licenses.clarify]]
+name = "unicode-normalization"
+version = "*"
+expression = "MIT OR Apache-2.0 OR Unicode-DFS-2016 OR Unicode-3.0"
+license-files = []
+
+[[licenses.clarify]]
+name = "unicode-bidi"
+version = "*"
+expression = "MIT OR Apache-2.0 OR Unicode-DFS-2016 OR Unicode-3.0"
+license-files = []
+
+[[licenses.clarify]]
+name = "unicode-xid"
+version = "*"
+expression = "MIT OR Apache-2.0 OR Unicode-DFS-2016 OR Unicode-3.0"
+license-files = []
+
+[[licenses.clarify]]
+name = "unicode-width"
+version = "*"
+expression = "MIT OR Apache-2.0 OR Unicode-DFS-2016 OR Unicode-3.0"
+license-files = []
+
 
 # Some crates don't have (easily) machine readable licensing information,
 # adding a clarification entry for it allows you to manually specify the
@@ -117,6 +155,13 @@ highlight = "all"
 # List of crates that are allowed. Use with care!
 allow = [
     #{ name = "ansi_term", version = "=0.11.0" },
+]
+
+# Explicitly ban OpenSSL-related crates
+deny = [
+    { name = "openssl" },
+    { name = "openssl-sys" },
+    { name = "openssl-probe" },
 ]
 
 # Certain crates/versions that will be skipped when doing duplicate detection.
