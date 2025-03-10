@@ -167,6 +167,13 @@ impl Issue {
             .and_then(|value| value.ok())
     }
 
+    /// Returns a permanent link to the issue in the Jira web interface
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if:
+    /// - The host URL cannot be joined with the browse path
+    /// - The issue key cannot be added to the URL path
     pub fn permalink(&self, jira: &Jira) -> String {
         //format!("{}/browse/{}", jira.host, self.key)
         jira.host
@@ -461,6 +468,12 @@ impl TransitionTriggerOptionsBuilder {
     }
 
     /// Appends a field to update as part of transition
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the provided value cannot be serialized to JSON.
+    /// This should only happen in exceptional circumstances, such as when a custom type
+    /// with a failing serialization implementation is provided.
     pub fn field<N, V>(&mut self, name: N, value: V) -> &mut TransitionTriggerOptionsBuilder
     where
         N: Into<String>,

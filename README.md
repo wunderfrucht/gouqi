@@ -16,6 +16,9 @@ Add the following to your `Cargo.toml` file
 ```toml
 [dependencies]
 gouqi = "*"
+
+# Optional: Enable async API
+gouqi = { version = "*", features = ["async"] }
 ```
 
 ## usage
@@ -24,7 +27,9 @@ Please browse the [examples](examples/) directory in this repo for some example 
 
 Basic usage requires a jira host, and a flavor of `jira::Credentials` for authorization.
 
-Current support api support is limited to search and issue transitioning.
+### Synchronous API
+
+The default API uses synchronous requests:
 
 ```rust,skeptic-template
 extern crate gouqi;
@@ -50,6 +55,57 @@ fn main() {
         error!("Missing environment variable JIRA_HOST!");
     }
 }
+```
+
+### Asynchronous API
+
+With the `async` feature enabled, you can use the asynchronous API:
+
+```rust
+extern crate gouqi;
+
+use futures::stream::StreamExt;
+use gouqi::{Credentials, SearchOptions};
+use std::env;
+use tracing::error;
+
+#[tokio::main]
+async fn main() {
+    if let Ok(host) = env::var("JIRA_HOST") {
+        let query = env::args().nth(1).unwrap_or("order by created DESC".to_owned());
+        
+        // Create an async Jira client
+        let jira = gouqi::r#async::Jira::new(host, Credentials::Anonymous)
+            .expect("Error initializing Jira");
+
+        // Use the stream method to get a futures Stream
+        let search_options = SearchOptions::default();
+        match jira.search().stream(query, &search_options).await {
+            Ok(mut stream) => {
+                // Consume the stream asynchronously
+                while let Some(issue) = stream.next().await {
+                    println!("{:#?}", issue);
+                }
+            }
+            Err(err) => error!("{:#?}", err),
+        }
+    } else {
+        error!("Missing environment variable JIRA_HOST!");
+    }
+}
+```
+
+You can also convert between sync and async clients:
+
+```rust
+// Convert from sync to async
+let sync_jira = Jira::new(host, credentials)?;
+let async_jira = sync_jira.into_async();
+
+// Convert from async to sync
+let async_jira = gouqi::r#async::Jira::new(host, credentials)?;
+let sync_jira = crate::sync::Jira::from(&async_jira);
+```
 ```
 
 ## Commiting a PR

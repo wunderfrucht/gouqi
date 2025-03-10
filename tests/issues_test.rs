@@ -102,12 +102,12 @@ mod changelog_tests {
 }"#)
             .create();
 
-        let jira = Jira::new(&*url, gouqi::Credentials::Anonymous).unwrap();
+        let jira = Jira::new(url, gouqi::Credentials::Anonymous).unwrap();
         let issues = Issues::new(&jira);
 
         let result = issues.changelog("TEST-1");
         mock_server.assert();
-        assert_eq!(result.is_ok(), true);
+        assert!(result.is_ok());
         let changelog = result.unwrap();
         assert_eq!(changelog.histories.len(), 2);
         assert_eq!(
@@ -129,7 +129,7 @@ mod changelog_tests {
             .with_status(404)
             .create();
 
-        let jira = Jira::new(&*url, gouqi::Credentials::Anonymous).unwrap();
+        let jira = Jira::new(url, gouqi::Credentials::Anonymous).unwrap();
         let issues = Issues::new(&jira);
 
         let result = issues.changelog("NONEXISTENT-1");
@@ -148,7 +148,7 @@ mod changelog_tests {
             .with_status(500)
             .create();
 
-        let jira = Jira::new(&*url, gouqi::Credentials::Anonymous).unwrap();
+        let jira = Jira::new(url, gouqi::Credentials::Anonymous).unwrap();
         let issues = Issues::new(&jira);
 
         let result = issues.changelog("TEST-2");

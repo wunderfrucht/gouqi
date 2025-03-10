@@ -115,7 +115,7 @@ impl<'a> BoardsIter<'a> {
     }
 }
 
-impl<'a> Iterator for BoardsIter<'a> {
+impl Iterator for BoardsIter<'_> {
     type Item = Board;
     fn next(&mut self) -> Option<Board> {
         self.results.values.pop().or_else(|| {
