@@ -1,3 +1,48 @@
+//! Asynchronous API for interacting with Jira.
+//!
+//! This module provides an asynchronous client for the Jira REST API. It is only available
+//! when the `async` feature is enabled.
+//!
+//! # Usage
+//!
+//! ```no_run
+//! # #[cfg(feature = "async")]
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! use gouqi::{Credentials, r#async::Jira, SearchOptions};
+//!
+//! let credentials = Credentials::Basic("username".to_string(), "password".to_string());
+//! let jira = Jira::new("https://jira.example.com", credentials)?;
+//!
+//! // Get information about the current session
+//! let session = jira.session().await?;
+//! println!("Logged in as: {}", session.name);
+//!
+//! // Search for issues
+//! let results = jira.search().list("project = DEMO", &Default::default()).await?;
+//! println!("Found {} issues", results.total);
+//!
+//! // Get board information
+//! let board = jira.boards().get(42).await?;
+//! println!("Board name: {}", board.name);
+//!
+//! // List all boards
+//! let options = SearchOptions::default();
+//! let boards = jira.boards().list(&options).await?;
+//! println!("Found {} boards", boards.values.len());
+//!
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Authentication Methods
+//!
+//! The async client supports the same authentication methods as the sync client:
+//!
+//! - Anonymous: `Credentials::Anonymous`
+//! - Basic authentication: `Credentials::Basic(username, password)`
+//! - Bearer token: `Credentials::Bearer(token)`
+//! - Cookie-based: `Credentials::Cookie(jsessionid)`
+
 use tracing::debug;
 
 use reqwest::header::CONTENT_TYPE;
@@ -78,6 +123,48 @@ impl Jira {
     #[tracing::instrument]
     pub fn issues(&self) -> crate::issues::AsyncIssues {
         crate::issues::AsyncIssues::new(self)
+    }
+
+    /// Returns the boards interface for working with Jira Agile boards asynchronously
+    ///
+    /// Boards in Jira Agile provide a visual way to manage work. This interface
+    /// allows interaction with boards, including retrieving board information
+    /// and listing all boards with pagination support.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use gouqi::{Credentials, r#async::Jira, SearchOptions};
+    /// # let jira = Jira::new("https://jira.example.com", Credentials::Anonymous)?;
+    /// // Get a specific board by ID
+    /// let board = jira.boards().get(42).await?;
+    /// println!("Board: {}", board.name);
+    ///
+    /// // List all boards with pagination
+    /// let options = SearchOptions::default();
+    /// let board_results = jira.boards().list(&options).await?;
+    /// for board in board_results.values {
+    ///     println!("Found board: {} ({})", board.name, board.id);
+    /// }
+    ///
+    /// // Use streaming API for efficient pagination
+    /// let mut stream = jira.boards().stream(&options).await?;
+    /// while let Some(result) = stream.try_next().await {
+    ///     let board = result?;
+    ///     println!("Streamed board: {}", board.name);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// An `AsyncBoards` instance configured with this client
+    #[tracing::instrument]
+    pub fn boards(&self) -> crate::boards::AsyncBoards {
+        crate::boards::AsyncBoards::new(self)
     }
 
     /// Asynchronously retrieves the current user's session information from Jira
