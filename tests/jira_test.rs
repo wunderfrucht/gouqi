@@ -83,6 +83,26 @@ fn jira_http_get_user() {
 }
 
 #[test]
+fn jira_http_get_cookie() {
+    let mut server = mockito::Server::new();
+
+    // Use one of these addresses to configure your client
+    let url = server.url();
+
+    // Create a mock
+    let mock = server
+        .mock("GET", "/rest/api/latest/endpoint")
+        .with_status(201)
+        .match_header("cookie", "JSESSIONID=ABC123XYZ")
+        .create();
+    let credentials = Credentials::Cookie("ABC123XYZ".to_string());
+
+    let jira = Jira::new(url, credentials).unwrap();
+    jira.get::<EmptyResponse>("api", "/endpoint").unwrap();
+    mock.assert();
+}
+
+#[test]
 fn jira_http_get() {
     let mut server = mockito::Server::new();
 

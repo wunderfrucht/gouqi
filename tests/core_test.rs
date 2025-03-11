@@ -34,11 +34,16 @@ mod core_tests {
             "http://example.com",
             Credentials::Bearer("token".to_string()),
         );
+        let jira_cookie = Jira::new(
+            "http://example.com", 
+            Credentials::Cookie("ABC123XYZ".to_string()),
+        );
 
         // Just ensure they can be created without error
         assert!(jira_anon.is_ok());
         assert!(jira_basic.is_ok());
         assert!(jira_bearer.is_ok());
+        assert!(jira_cookie.is_ok());
     }
 }
 
@@ -77,6 +82,15 @@ mod async_core_tests {
     #[test]
     fn test_async_client_core_new() {
         let jira = AsyncJira::new("http://example.com", Credentials::Anonymous);
+        assert!(jira.is_ok());
+    }
+    
+    #[test]
+    fn test_async_client_with_cookie_auth() {
+        let jira = AsyncJira::new(
+            "http://example.com",
+            Credentials::Cookie("ABC123XYZ".to_string()),
+        );
         assert!(jira.is_ok());
     }
 
