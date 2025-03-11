@@ -20,7 +20,7 @@ pub struct EmptyResponse;
 ///
 /// - Personal Access Token are used with [`Credentials::Basic`] scheme as a password replacement and *not* as a [`Credentials::Bearer`]
 ///   like the [API documentation suggests](https://developer.atlassian.com/server/jira/platform/rest-apis/#authentication-and-authorization).
-/// - Cookie-based authentication (`Credentials::Cookie`) uses the JSESSIONID cookie as described in 
+/// - Cookie-based authentication (`Credentials::Cookie`) uses the JSESSIONID cookie as described in
 ///   [Cookie-based Authentication](https://developer.atlassian.com/server/jira/platform/cookie-based-authentication/).
 #[derive(Clone, Debug)]
 pub enum Credentials {
@@ -102,9 +102,10 @@ impl ClientCore {
                 builder.basic_auth(user.to_owned(), Some(pass.to_owned()))
             }
             Credentials::Bearer(ref token) => builder.bearer_auth(token.to_owned()),
-            Credentials::Cookie(ref jsessionid) => {
-                builder.header(reqwest::header::COOKIE, format!("JSESSIONID={}", jsessionid))
-            }
+            Credentials::Cookie(ref jsessionid) => builder.header(
+                reqwest::header::COOKIE,
+                format!("JSESSIONID={}", jsessionid),
+            ),
         }
     }
 
@@ -119,9 +120,10 @@ impl ClientCore {
                 builder.basic_auth(user.to_owned(), Some(pass.to_owned()))
             }
             Credentials::Bearer(ref token) => builder.bearer_auth(token.to_owned()),
-            Credentials::Cookie(ref jsessionid) => {
-                builder.header(reqwest::header::COOKIE, format!("JSESSIONID={}", jsessionid))
-            }
+            Credentials::Cookie(ref jsessionid) => builder.header(
+                reqwest::header::COOKIE,
+                format!("JSESSIONID={}", jsessionid),
+            ),
         }
     }
 }
