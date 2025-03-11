@@ -2,29 +2,35 @@ use std::io::Read;
 use tracing::debug;
 
 use reqwest::header::CONTENT_TYPE;
-use reqwest::{blocking::Client, Method, StatusCode};
+use reqwest::{blocking::Client, Method};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use url::Url;
 
 use crate::attachments::Attachments;
 use crate::boards::Boards;
 use crate::components::Components;
+use crate::core::ClientCore;
 use crate::issues::Issues;
 use crate::rep::Session;
 use crate::search::Search;
 use crate::sprints::Sprints;
 use crate::transitions::Transitions;
 use crate::versions::Versions;
-use crate::{Credentials, Error, Errors, Result};
+use crate::{Credentials, Result};
 
 /// Entrypoint into client interface
 /// <https://docs.atlassian.com/jira/REST/latest/>
 #[derive(Clone, Debug)]
 pub struct Jira {
-    pub(crate) host: Url,
-    pub(crate) credentials: Credentials,
+    pub(crate) core: ClientCore,
     client: Client,
+}
+
+// Access methods to maintain compatibility
+impl Jira {
+    pub(crate) fn host(&self) -> &url::Url {
+        &self.core.host
+    }
 }
 
 impl Jira {
@@ -33,14 +39,11 @@ impl Jira {
     where
         H: Into<String>,
     {
-        match Url::parse(&host.into()) {
-            Ok(host) => Ok(Jira {
-                host,
-                client: Client::new(),
-                credentials,
-            }),
-            Err(error) => Err(Error::from(error)),
-        }
+        let core = ClientCore::new(host, credentials)?;
+        Ok(Jira {
+            core,
+            client: Client::new(),
+        })
     }
 
     /// Creates a new instance of a jira client using a specified reqwest client
@@ -48,14 +51,27 @@ impl Jira {
     where
         H: Into<String>,
     {
-        match Url::parse(&host.into()) {
-            Ok(host) => Ok(Jira {
-                host,
-                client,
-                credentials,
-            }),
-            Err(error) => Err(Error::from(error)),
-        }
+        let core = ClientCore::new(host, credentials)?;
+        Ok(Jira { core, client })
+    }
+
+    /// Creates a client instance directly from an existing ClientCore
+    ///
+    /// This is particularly useful for converting between sync and async clients
+    /// while preserving all configuration and credentials.
+    ///
+    /// # Arguments
+    ///
+    /// * `core` - An existing ClientCore instance containing host and credentials
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the new Jira client instance if successful
+    pub fn with_core(core: ClientCore) -> Result<Jira> {
+        Ok(Jira {
+            core,
+            client: Client::new(),
+        })
     }
 
     /// Return transitions interface
@@ -72,39 +88,96 @@ impl Jira {
         Search::new(self)
     }
 
-    // Return issues interface
+    /// Returns the issues interface for working with Jira issues
+    ///
+    /// This interface provides methods to create, read, update, and delete issues,
+    /// as well as operations for working with issue fields, comments, and other
+    /// issue-related data.
+    ///
+    /// # Returns
+    ///
+    /// An `Issues` instance configured with this client
     #[tracing::instrument]
     pub fn issues(&self) -> Issues {
         Issues::new(self)
     }
 
-    // Return attachments interface
+    /// Returns the attachments interface for working with Jira issue attachments
+    ///
+    /// This interface allows managing file attachments on Jira issues,
+    /// providing methods to retrieve metadata about attachments and
+    /// manage attachment content.
+    ///
+    /// # Returns
+    ///
+    /// An `Attachments` instance configured with this client
     pub fn attachments(&self) -> Attachments {
         Attachments::new(self)
     }
 
-    // Return components interface
+    /// Returns the components interface for working with Jira project components
+    ///
+    /// Components are used in Jira to group issues within a project. This interface
+    /// provides methods to create, retrieve, update, and delete project components.
+    ///
+    /// # Returns
+    ///
+    /// A `Components` instance configured with this client
     pub fn components(&self) -> Components {
         Components::new(self)
     }
 
-    // Return boards interface
+    /// Returns the boards interface for working with Jira Agile boards
+    ///
+    /// Boards in Jira Agile provide a visual way to manage work. This interface
+    /// allows interaction with boards, including retrieving board information,
+    /// sprints, and issues on boards.
+    ///
+    /// # Returns
+    ///
+    /// A `Boards` instance configured with this client
     #[tracing::instrument]
     pub fn boards(&self) -> Boards {
         Boards::new(self)
     }
 
-    // Return boards interface
+    /// Returns the sprints interface for working with Jira Agile sprints
+    ///
+    /// Sprints are time-boxed iterations in Jira Agile. This interface provides
+    /// methods to access sprint data, create or update sprints, and manage
+    /// the issues within sprints.
+    ///
+    /// # Returns
+    ///
+    /// A `Sprints` instance configured with this client
     #[tracing::instrument]
     pub fn sprints(&self) -> Sprints {
         Sprints::new(self)
     }
 
+    /// Returns the versions interface for working with Jira project versions
+    ///
+    /// Versions represent releases or milestones in Jira projects. This interface
+    /// allows creating, retrieving, updating, and deleting project versions,
+    /// as well as managing issues associated with versions.
+    ///
+    /// # Returns
+    ///
+    /// A `Versions` instance configured with this client
     #[tracing::instrument]
     pub fn versions(&self) -> Versions {
         Versions::new(self)
     }
 
+    /// Retrieves the current user's session information from Jira
+    ///
+    /// This method provides information about the authenticated user's session,
+    /// including user details and authentication status.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the `Session` information if successful, or an
+    /// `Error` if the request fails
     pub fn session(&self) -> Result<Session> {
         self.get("auth", "/session")
     }
@@ -195,9 +268,9 @@ impl Jira {
         D: DeserializeOwned,
         S: Serialize,
     {
-        let data = serde_json::to_string::<S>(&body)?;
-        debug!("Json POST request: {}", data);
-        self.request::<D>(Method::POST, api_name, endpoint, Some(data.into_bytes()))
+        let data = self.core.prepare_json_body(body)?;
+        debug!("Json POST request sent");
+        self.request::<D>(Method::POST, api_name, endpoint, Some(data))
     }
 
     /// Sends a PUT request using the Jira client.
@@ -230,9 +303,9 @@ impl Jira {
         D: DeserializeOwned,
         S: Serialize,
     {
-        let data = serde_json::to_string::<S>(&body)?;
-        debug!("Json request: {}", data);
-        self.request::<D>(Method::PUT, api_name, endpoint, Some(data.into_bytes()))
+        let data = self.core.prepare_json_body(body)?;
+        debug!("Json PUT request sent");
+        self.request::<D>(Method::PUT, api_name, endpoint, Some(data))
     }
 
     #[tracing::instrument]
@@ -246,9 +319,7 @@ impl Jira {
     where
         D: DeserializeOwned,
     {
-        let url = self
-            .host
-            .join(&format!("rest/{api_name}/latest{endpoint}"))?;
+        let url = self.core.build_url(api_name, endpoint)?;
         debug!("url -> {:?}", url);
 
         let mut req = self
@@ -256,7 +327,7 @@ impl Jira {
             .request(method, url)
             .header(CONTENT_TYPE, "application/json");
 
-        req = self.credentials.apply(req);
+        req = self.core.apply_credentials_sync(req);
 
         if let Some(body) = body {
             req = req.body(body);
@@ -268,18 +339,7 @@ impl Jira {
         let mut body = String::new();
         res.read_to_string(&mut body)?;
         debug!("status {:?} body '{:?}'", res.status(), body);
-        match res.status() {
-            StatusCode::UNAUTHORIZED => Err(Error::Unauthorized),
-            StatusCode::METHOD_NOT_ALLOWED => Err(Error::MethodNotAllowed),
-            StatusCode::NOT_FOUND => Err(Error::NotFound),
-            client_err if client_err.is_client_error() => Err(Error::Fault {
-                code: res.status(),
-                errors: serde_json::from_str::<Errors>(&body)?,
-            }),
-            _ => {
-                let data = if body.is_empty() { "null" } else { &body };
-                Ok(serde_json::from_str::<D>(data)?)
-            }
-        }
+
+        self.core.process_response(res.status(), &body)
     }
 }

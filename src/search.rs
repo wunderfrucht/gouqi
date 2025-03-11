@@ -4,6 +4,7 @@
 use url::form_urlencoded;
 
 // Ours
+use crate::core::PaginationInfo;
 use crate::sync::Jira;
 use crate::{Issue, Result, SearchOptions, SearchResults};
 
@@ -64,6 +65,8 @@ pub struct Iter<'a> {
     search_options: &'a SearchOptions,
 }
 
+impl PaginationInfo for Iter<'_> {}
+
 impl<'a> Iter<'a> {
     fn new<J>(jql: J, options: &'a SearchOptions, jira: &Jira) -> Result<Self>
     where
@@ -80,7 +83,10 @@ impl<'a> Iter<'a> {
     }
 
     fn more(&self) -> bool {
-        (self.results.start_at + self.results.issues.len() as u64) < self.results.total
+        let start_at = self.results.start_at;
+        let current_count = self.results.issues.len() as u64;
+        let total = self.results.total;
+        Self::more_pages(current_count, start_at, total)
     }
 }
 
@@ -180,6 +186,9 @@ struct AsyncIssueStream<'a> {
 }
 
 #[cfg(feature = "async")]
+impl PaginationInfo for AsyncIssueStream<'_> {}
+
+#[cfg(feature = "async")]
 impl Stream for AsyncIssueStream<'_> {
     type Item = Issue;
 
@@ -197,8 +206,11 @@ impl Stream for AsyncIssueStream<'_> {
         }
 
         // Check if we need to fetch the next page
-        let more_pages = (self.current_results.start_at + self.current_results.issues.len() as u64)
-            < self.current_results.total;
+        let more_pages = Self::more_pages(
+            self.current_results.issues.len() as u64,
+            self.current_results.start_at,
+            self.current_results.total,
+        );
 
         if more_pages {
             // Create a future to fetch the next page

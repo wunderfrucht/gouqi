@@ -176,7 +176,7 @@ impl Issue {
     /// - The issue key cannot be added to the URL path
     pub fn permalink(&self, jira: &Jira) -> String {
         //format!("{}/browse/{}", jira.host, self.key)
-        jira.host
+        jira.host()
             .join("/browse/")
             .unwrap()
             .join(&self.key)
