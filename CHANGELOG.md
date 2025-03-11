@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.0] - 2025-03-11
+
+### 🚀 Features
+
+- Chore(Mergify) Update .mergify.yml add check-succes checks
+- *(async)* Added async support
+- *(auth)* Add cookie-based authentication support
+
+### 🚜 Refactor
+
+- *(core)* Create shared core module between sync and async APIs
+
+### ⚙️ Miscellaneous Tasks
+
+- *(Mergify)* Configuration update
+
 ## [0.9.0] - 2024-10-03
 
 ### 🚀 Features

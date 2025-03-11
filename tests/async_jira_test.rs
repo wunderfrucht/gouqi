@@ -96,7 +96,7 @@ mod async_tests {
         // Use async version of assert
         mock.assert_async().await;
     }
-    
+
     #[tokio::test]
     async fn async_jira_http_get_cookie() {
         // Use async version of Server::new
