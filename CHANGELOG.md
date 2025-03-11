@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### 🚀 Features
+
+- *(async)* Added async boards interface with get, list, and stream methods
+
 ## [0.10.0] - 2025-03-11
 
 ### 🚀 Features

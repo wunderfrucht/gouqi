@@ -41,3 +41,8 @@ async = ["tokio", "futures"]
 
 [package.metadata.clippy]
 warn = ["missing_panics_doc"]
+
+[package.metadata.docs.rs]
+# This ensures docs.rs generates documentation with all features enabled
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
