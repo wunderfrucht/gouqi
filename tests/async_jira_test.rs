@@ -96,6 +96,29 @@ mod async_tests {
         // Use async version of assert
         mock.assert_async().await;
     }
+    
+    #[tokio::test]
+    async fn async_jira_http_get_cookie() {
+        // Use async version of Server::new
+        let mut server = mockito::Server::new_async().await;
+        let url = server.url();
+
+        // Use async version of create
+        let mock = server
+            .mock("GET", "/rest/api/latest/endpoint")
+            .with_status(201)
+            .match_header("cookie", "JSESSIONID=ABC123XYZ")
+            .create_async()
+            .await;
+
+        // Run the test
+        let credentials = Credentials::Cookie("ABC123XYZ".to_string());
+        let jira = AsyncJira::new(url, credentials).unwrap();
+        jira.get::<EmptyResponse>("api", "/endpoint").await.unwrap();
+
+        // Use async version of assert
+        mock.assert_async().await;
+    }
 
     #[tokio::test]
     async fn async_jira_http_get() {
