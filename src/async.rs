@@ -1,21 +1,30 @@
 use tracing::debug;
 
 use reqwest::header::CONTENT_TYPE;
-use reqwest::{Client, Method, StatusCode};
+use reqwest::{Client, Method};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use url::Url;
 
+use crate::core::ClientCore;
 use crate::rep::Session;
-use crate::{Credentials, Error, Errors, Result};
+use crate::{Credentials, Result};
 
 /// Entrypoint into async client interface
 /// <https://docs.atlassian.com/jira/REST/latest/>
 #[derive(Clone, Debug)]
 pub struct Jira {
-    pub(crate) host: Url,
-    pub(crate) credentials: Credentials,
+    pub(crate) core: ClientCore,
     client: Client,
+}
+
+// Access methods to maintain compatibility
+impl Jira {
+    // This method is only used with the synchronous Jira client
+    // Adding cfg attribute to prevent dead code warning when using async feature
+    #[allow(dead_code)]
+    pub(crate) fn host(&self) -> &url::Url {
+        &self.core.host
+    }
 }
 
 impl Jira {
@@ -24,14 +33,11 @@ impl Jira {
     where
         H: Into<String>,
     {
-        match Url::parse(&host.into()) {
-            Ok(host) => Ok(Jira {
-                host,
-                client: Client::new(),
-                credentials,
-            }),
-            Err(error) => Err(Error::from(error)),
-        }
+        let core = ClientCore::new(host, credentials)?;
+        Ok(Jira {
+            core,
+            client: Client::new(),
+        })
     }
 
     /// Creates a new instance of an async jira client using a specified reqwest client
@@ -39,14 +45,27 @@ impl Jira {
     where
         H: Into<String>,
     {
-        match Url::parse(&host.into()) {
-            Ok(host) => Ok(Jira {
-                host,
-                client,
-                credentials,
-            }),
-            Err(error) => Err(Error::from(error)),
-        }
+        let core = ClientCore::new(host, credentials)?;
+        Ok(Jira { core, client })
+    }
+
+    /// Creates an async client instance directly from an existing ClientCore
+    ///
+    /// This is particularly useful for converting between sync and async clients
+    /// while preserving all configuration and credentials.
+    ///
+    /// # Arguments
+    ///
+    /// * `core` - An existing ClientCore instance containing host and credentials
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the new async Jira client instance if successful
+    pub fn with_core(core: ClientCore) -> Result<Jira> {
+        Ok(Jira {
+            core,
+            client: Client::new(),
+        })
     }
 
     /// Return search interface
@@ -61,6 +80,15 @@ impl Jira {
         crate::issues::AsyncIssues::new(self)
     }
 
+    /// Asynchronously retrieves the current user's session information from Jira
+    ///
+    /// This method provides information about the authenticated user's session,
+    /// including user details and authentication status.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the `Session` information if successful, or an
+    /// `Error` if the request fails
     pub async fn session(&self) -> Result<Session> {
         self.get("auth", "/session").await
     }
@@ -118,9 +146,9 @@ impl Jira {
         D: DeserializeOwned,
         S: Serialize,
     {
-        let data = serde_json::to_string::<S>(&body)?;
-        debug!("Json POST request: {}", data);
-        self.request::<D>(Method::POST, api_name, endpoint, Some(data.into_bytes()))
+        let data = self.core.prepare_json_body(body)?;
+        debug!("Json POST request sent");
+        self.request::<D>(Method::POST, api_name, endpoint, Some(data))
             .await
     }
 
@@ -139,9 +167,9 @@ impl Jira {
         D: DeserializeOwned,
         S: Serialize,
     {
-        let data = serde_json::to_string::<S>(&body)?;
-        debug!("Json request: {}", data);
-        self.request::<D>(Method::PUT, api_name, endpoint, Some(data.into_bytes()))
+        let data = self.core.prepare_json_body(body)?;
+        debug!("Json PUT request sent");
+        self.request::<D>(Method::PUT, api_name, endpoint, Some(data))
             .await
     }
 
@@ -156,9 +184,7 @@ impl Jira {
     where
         D: DeserializeOwned,
     {
-        let url = self
-            .host
-            .join(&format!("rest/{api_name}/latest{endpoint}"))?;
+        let url = self.core.build_url(api_name, endpoint)?;
         debug!("url -> {:?}", url);
 
         let mut req = self
@@ -166,14 +192,7 @@ impl Jira {
             .request(method, url)
             .header(CONTENT_TYPE, "application/json");
 
-        // Apply credentials to the request
-        req = match &self.credentials {
-            Credentials::Anonymous => req,
-            Credentials::Basic(ref user, ref pass) => {
-                req.basic_auth(user.to_owned(), Some(pass.to_owned()))
-            }
-            Credentials::Bearer(ref token) => req.bearer_auth(token.to_owned()),
-        };
+        req = self.core.apply_credentials_async(req);
 
         if let Some(body) = body {
             req = req.body(body);
@@ -186,33 +205,18 @@ impl Jira {
 
         debug!("status {:?} body '{:?}'", status, body);
 
-        match status {
-            StatusCode::UNAUTHORIZED => Err(Error::Unauthorized),
-            StatusCode::METHOD_NOT_ALLOWED => Err(Error::MethodNotAllowed),
-            StatusCode::NOT_FOUND => Err(Error::NotFound),
-            client_err if client_err.is_client_error() => Err(Error::Fault {
-                code: status,
-                errors: serde_json::from_str::<Errors>(&body)?,
-            }),
-            _ => {
-                let data = if body.is_empty() { "null" } else { &body };
-                Ok(serde_json::from_str::<D>(data)?)
-            }
-        }
+        self.core.process_response(status, &body)
     }
 }
 
 // Convert an async Jira instance to a sync one
 impl From<&Jira> for crate::sync::Jira {
     fn from(async_jira: &Jira) -> Self {
-        // This is a best-effort conversion - if it fails, we'll just create a new client
-        if let Ok(jira) =
-            crate::sync::Jira::new(async_jira.host.as_str(), async_jira.credentials.clone())
-        {
+        // Using the ClientCore directly is more reliable than trying to recreate it
+        if let Ok(jira) = crate::sync::Jira::with_core(async_jira.core.clone()) {
             jira
         } else {
-            // This should never happen since we already validated the URL
-            // but we need to handle the potential error
+            // This fallback should never be needed since we're reusing the core
             crate::sync::Jira::new("http://localhost", Credentials::Anonymous).unwrap()
         }
     }

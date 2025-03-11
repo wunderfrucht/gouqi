@@ -6,7 +6,7 @@
 - Run single test: `cargo test test_name`
 - Format check: `cargo fmt --all -- --check`
 - Lint: `cargo clippy --all-targets --all-features -- -W clippy::missing_panics_doc`
-- Code coverage: `cargo tarpaulin --out Xml --output-dir coverage -- --test-threads 1`
+- Code coverage: `cargo tarpaulin --out Xml --output-dir coverage --all-features -- --test-threads 1`
 - Security audit: `cargo audit` (required - will fail the build if vulnerabilities are found)
 - Check dependencies: `cargo udeps`
 - Check dependencies and licensing: `cargo deny check bans licenses sources`
