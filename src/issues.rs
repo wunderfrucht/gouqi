@@ -10,6 +10,7 @@ use crate::sync::Jira;
 use crate::{
     Board, Changelog, Comment, Issue, IssueType, Priority, Project, Result, SearchOptions,
 };
+use crate::relationships::{RelationshipGraph, GraphOptions, IssueRelationships};
 
 #[cfg(feature = "async")]
 use futures::Future;
@@ -205,6 +206,244 @@ impl Issues {
         self.jira
             .get("api", format!("/issue/{}/changelog", key.into()).as_ref())
     }
+
+    /// Extract relationship graph from Jira to specified depth
+    ///
+    /// This method traverses issue relationships breadth-first starting from
+    /// the root issue and builds a declarative relationship graph that can be
+    /// used for analysis or applied to other Jira instances.
+    ///
+    /// # Arguments
+    ///
+    /// * `root_issue` - The issue key to start traversal from
+    /// * `depth` - Maximum depth to traverse (0 = root issue only)
+    /// * `options` - Optional configuration for graph extraction
+    ///
+    /// # Returns
+    ///
+    /// A `RelationshipGraph` containing all discovered relationships
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use gouqi::{Credentials, Jira};
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
+    /// // Get all relationships 2 levels deep from PROJ-123
+    /// let graph = jira.issues()
+    ///     .get_relationship_graph("PROJ-123", 2, None)?;
+    ///
+    /// // Get only blocking relationships
+    /// use gouqi::relationships::GraphOptions;
+    /// let options = GraphOptions {
+    ///     include_types: Some(vec!["blocks".to_string(), "blocked_by".to_string()]),
+    ///     ..Default::default()
+    /// };
+    /// let blocking_graph = jira.issues()
+    ///     .get_relationship_graph("PROJ-123", 1, Some(options))?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn get_relationship_graph(
+        &self,
+        root_issue: &str,
+        depth: u32,
+        options: Option<GraphOptions>,
+    ) -> Result<RelationshipGraph> {
+        use std::collections::{HashMap, HashSet, VecDeque};
+
+        let options = options.unwrap_or_default();
+        let mut graph = RelationshipGraph::new("jira".to_string());
+        graph.metadata.root_issue = Some(root_issue.to_string());
+        graph.metadata.max_depth = depth;
+
+        // BFS traversal
+        let mut queue = VecDeque::new();
+        let mut visited = HashSet::new();
+        let mut depth_map = HashMap::new();
+
+        queue.push_back(root_issue.to_string());
+        depth_map.insert(root_issue.to_string(), 0);
+
+        while let Some(current_issue) = queue.pop_front() {
+            let current_depth = depth_map[&current_issue];
+            
+            if visited.contains(&current_issue) {
+                continue;
+            }
+            visited.insert(current_issue.clone());
+
+            // Get the issue details
+            let issue = match self.get(&current_issue) {
+                Ok(issue) => issue,
+                Err(_) => {
+                    // Issue not found or not accessible, skip
+                    continue;
+                }
+            };
+
+            // Extract relationships from the issue
+            let relationships = self.extract_relationships_from_issue(&issue, &options)?;
+            
+            // Add to graph
+            graph.add_issue(current_issue.clone(), relationships.clone());
+
+            // If we haven't reached max depth, add related issues to queue
+            if current_depth < depth {
+                let related_issues = relationships.get_all_related();
+                for related_issue in related_issues {
+                    if !depth_map.contains_key(&related_issue) {
+                        depth_map.insert(related_issue.clone(), current_depth + 1);
+                        queue.push_back(related_issue);
+                    }
+                }
+            }
+        }
+
+        Ok(graph)
+    }
+
+    /// Extract relationships from a single issue
+    fn extract_relationships_from_issue(
+        &self,
+        issue: &Issue,
+        options: &GraphOptions,
+    ) -> Result<IssueRelationships> {
+        let mut relationships = IssueRelationships::new();
+
+        // Extract issue links
+        if let Some(Ok(links)) = issue.links() {
+            for link in links {
+                let link_type_name = &link.link_type.name;
+                
+                // Check if this link type should be included
+                if let Some(ref include_types) = options.include_types {
+                    if !include_types.contains(link_type_name) {
+                        continue;
+                    }
+                }
+                if let Some(ref exclude_types) = options.exclude_types {
+                    if exclude_types.contains(link_type_name) {
+                        continue;
+                    }
+                }
+
+                // Map Jira link types to our standard types
+                let (outward_type, inward_type) = self.map_link_type(link_type_name);
+
+                // Add outward relationship
+                if let Some(ref outward_issue) = link.outward_issue {
+                    if options.bidirectional || Some(&issue.key) != Some(&outward_issue.key) {
+                        relationships.add_relationship(&outward_type, outward_issue.key.clone());
+                    }
+                }
+
+                // Add inward relationship
+                if let Some(ref inward_issue) = link.inward_issue {
+                    if options.bidirectional || Some(&issue.key) != Some(&inward_issue.key) {
+                        relationships.add_relationship(&inward_type, inward_issue.key.clone());
+                    }
+                }
+
+                // Add to custom if not a standard type
+                if !self.is_standard_link_type(link_type_name) && options.include_custom {
+                    if let Some(ref outward_issue) = link.outward_issue {
+                        relationships.add_relationship(
+                            &format!("custom_{}", link_type_name.to_lowercase()),
+                            outward_issue.key.clone(),
+                        );
+                    }
+                    if let Some(ref inward_issue) = link.inward_issue {
+                        relationships.add_relationship(
+                            &format!("custom_{}_inward", link_type_name.to_lowercase()),
+                            inward_issue.key.clone(),
+                        );
+                    }
+                }
+            }
+        }
+
+        // Extract parent-child relationships
+        if let Some(parent_issue) = issue.parent() {
+            relationships.parent = Some(parent_issue.key);
+        }
+
+        // Extract epic relationships (if available in custom fields)
+        // This would need to be customized based on the Jira instance configuration
+        if let Some(epic_link) = self.extract_epic_link(issue) {
+            relationships.epic = Some(epic_link);
+        }
+
+        Ok(relationships)
+    }
+
+    /// Map Jira link type names to our standard relationship types
+    fn map_link_type(&self, link_type_name: &str) -> (String, String) {
+        match link_type_name.to_lowercase().as_str() {
+            "blocks" => ("blocks".to_string(), "blocked_by".to_string()),
+            "duplicate" | "duplicates" => ("duplicates".to_string(), "duplicated_by".to_string()),
+            "relates" | "relates to" => ("relates_to".to_string(), "relates_to".to_string()),
+            "clones" => ("duplicates".to_string(), "duplicated_by".to_string()),
+            "causes" => ("blocks".to_string(), "blocked_by".to_string()),
+            _ => (
+                format!("custom_{}", link_type_name.to_lowercase()),
+                format!("custom_{}_inward", link_type_name.to_lowercase()),
+            ),
+        }
+    }
+
+    /// Check if a link type is one of our standard types
+    fn is_standard_link_type(&self, link_type_name: &str) -> bool {
+        matches!(
+            link_type_name.to_lowercase().as_str(),
+            "blocks" | "duplicate" | "duplicates" | "relates" | "relates to" | "clones" | "causes"
+        )
+    }
+
+    /// Extract epic link from issue (customize based on your Jira configuration)
+    fn extract_epic_link(&self, issue: &Issue) -> Option<String> {
+        // This is a common custom field for Epic Link
+        // You may need to adjust the field name based on your Jira configuration
+        issue.field::<String>("customfield_10014").and_then(|result| result.ok())
+            .or_else(|| issue.field::<String>("customfield_10008").and_then(|result| result.ok()))
+            .or_else(|| issue.field::<String>("Epic Link").and_then(|result| result.ok()))
+    }
+
+    /// Get current relationships for multiple issues efficiently
+    ///
+    /// This is more efficient than calling `get_relationship_graph` for each issue
+    /// individually when you need relationships for a known set of issues.
+    ///
+    /// # Arguments
+    ///
+    /// * `issue_keys` - List of issue keys to get relationships for
+    /// * `options` - Optional configuration for relationship extraction
+    ///
+    /// # Returns
+    ///
+    /// A `RelationshipGraph` containing relationships for all specified issues
+    pub fn get_bulk_relationships(
+        &self,
+        issue_keys: &[String],
+        options: Option<GraphOptions>,
+    ) -> Result<RelationshipGraph> {
+        let options = options.unwrap_or_default();
+        let mut graph = RelationshipGraph::new("jira_bulk".to_string());
+        graph.metadata.max_depth = 0; // Direct relationships only
+
+        for issue_key in issue_keys {
+            match self.get(issue_key) {
+                Ok(issue) => {
+                    let relationships = self.extract_relationships_from_issue(&issue, &options)?;
+                    graph.add_issue(issue_key.clone(), relationships);
+                }
+                Err(_) => {
+                    // Issue not found or not accessible, skip but could log
+                    continue;
+                }
+            }
+        }
+
+        Ok(graph)
+    }
 }
 
 /// Provides an iterator over multiple pages of search results
@@ -363,6 +602,247 @@ impl AsyncIssues {
         self.jira
             .get("api", format!("/issue/{}/changelog", key.into()).as_ref())
             .await
+    }
+
+    /// Extract relationship graph from Jira to specified depth (async version)
+    ///
+    /// This method asynchronously traverses issue relationships breadth-first starting from
+    /// the root issue and builds a declarative relationship graph that can be
+    /// used for analysis or applied to other Jira instances.
+    ///
+    /// # Arguments
+    ///
+    /// * `root_issue` - The issue key to start traversal from
+    /// * `depth` - Maximum depth to traverse (0 = root issue only)
+    /// * `options` - Optional configuration for graph extraction
+    ///
+    /// # Returns
+    ///
+    /// A `RelationshipGraph` containing all discovered relationships
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use gouqi::{Credentials, r#async::Jira};
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous)?;
+    /// // Get all relationships 2 levels deep from PROJ-123
+    /// let graph = jira.issues()
+    ///     .get_relationship_graph("PROJ-123", 2, None).await?;
+    ///
+    /// // Get only blocking relationships
+    /// use gouqi::relationships::GraphOptions;
+    /// let options = GraphOptions {
+    ///     include_types: Some(vec!["blocks".to_string(), "blocked_by".to_string()]),
+    ///     ..Default::default()
+    /// };
+    /// let blocking_graph = jira.issues()
+    ///     .get_relationship_graph("PROJ-123", 1, Some(options)).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn get_relationship_graph(
+        &self,
+        root_issue: &str,
+        depth: u32,
+        options: Option<GraphOptions>,
+    ) -> Result<RelationshipGraph> {
+        use std::collections::{HashMap, HashSet, VecDeque};
+
+        let options = options.unwrap_or_default();
+        let mut graph = RelationshipGraph::new("jira_async".to_string());
+        graph.metadata.root_issue = Some(root_issue.to_string());
+        graph.metadata.max_depth = depth;
+
+        // BFS traversal
+        let mut queue = VecDeque::new();
+        let mut visited = HashSet::new();
+        let mut depth_map = HashMap::new();
+
+        queue.push_back(root_issue.to_string());
+        depth_map.insert(root_issue.to_string(), 0);
+
+        while let Some(current_issue) = queue.pop_front() {
+            let current_depth = depth_map[&current_issue];
+            
+            if visited.contains(&current_issue) {
+                continue;
+            }
+            visited.insert(current_issue.clone());
+
+            // Get the issue details asynchronously
+            let issue = match self.get(&current_issue).await {
+                Ok(issue) => issue,
+                Err(_) => {
+                    // Issue not found or not accessible, skip
+                    continue;
+                }
+            };
+
+            // Extract relationships from the issue
+            let relationships = self.extract_relationships_from_issue(&issue, &options)?;
+            
+            // Add to graph
+            graph.add_issue(current_issue.clone(), relationships.clone());
+
+            // If we haven't reached max depth, add related issues to queue
+            if current_depth < depth {
+                let related_issues = relationships.get_all_related();
+                for related_issue in related_issues {
+                    if !depth_map.contains_key(&related_issue) {
+                        depth_map.insert(related_issue.clone(), current_depth + 1);
+                        queue.push_back(related_issue);
+                    }
+                }
+            }
+        }
+
+        Ok(graph)
+    }
+
+    /// Extract relationships from a single issue (async helper)
+    fn extract_relationships_from_issue(
+        &self,
+        issue: &Issue,
+        options: &GraphOptions,
+    ) -> Result<IssueRelationships> {
+        let mut relationships = IssueRelationships::new();
+
+        // Extract issue links
+        if let Some(Ok(links)) = issue.links() {
+            for link in links {
+                let link_type_name = &link.link_type.name;
+                
+                // Check if this link type should be included
+                if let Some(ref include_types) = options.include_types {
+                    if !include_types.contains(link_type_name) {
+                        continue;
+                    }
+                }
+                if let Some(ref exclude_types) = options.exclude_types {
+                    if exclude_types.contains(link_type_name) {
+                        continue;
+                    }
+                }
+
+                // Map Jira link types to our standard types
+                let (outward_type, inward_type) = self.map_link_type(link_type_name);
+
+                // Add outward relationship
+                if let Some(ref outward_issue) = link.outward_issue {
+                    if options.bidirectional || Some(&issue.key) != Some(&outward_issue.key) {
+                        relationships.add_relationship(&outward_type, outward_issue.key.clone());
+                    }
+                }
+
+                // Add inward relationship
+                if let Some(ref inward_issue) = link.inward_issue {
+                    if options.bidirectional || Some(&issue.key) != Some(&inward_issue.key) {
+                        relationships.add_relationship(&inward_type, inward_issue.key.clone());
+                    }
+                }
+
+                // Add to custom if not a standard type
+                if !self.is_standard_link_type(link_type_name) && options.include_custom {
+                    if let Some(ref outward_issue) = link.outward_issue {
+                        relationships.add_relationship(
+                            &format!("custom_{}", link_type_name.to_lowercase()),
+                            outward_issue.key.clone(),
+                        );
+                    }
+                    if let Some(ref inward_issue) = link.inward_issue {
+                        relationships.add_relationship(
+                            &format!("custom_{}_inward", link_type_name.to_lowercase()),
+                            inward_issue.key.clone(),
+                        );
+                    }
+                }
+            }
+        }
+
+        // Extract parent-child relationships
+        if let Some(parent_issue) = issue.parent() {
+            relationships.parent = Some(parent_issue.key);
+        }
+
+        // Extract epic relationships (if available in custom fields)
+        if let Some(epic_link) = self.extract_epic_link(issue) {
+            relationships.epic = Some(epic_link);
+        }
+
+        Ok(relationships)
+    }
+
+    /// Map Jira link type names to our standard relationship types (async helper)
+    fn map_link_type(&self, link_type_name: &str) -> (String, String) {
+        match link_type_name.to_lowercase().as_str() {
+            "blocks" => ("blocks".to_string(), "blocked_by".to_string()),
+            "duplicate" | "duplicates" => ("duplicates".to_string(), "duplicated_by".to_string()),
+            "relates" | "relates to" => ("relates_to".to_string(), "relates_to".to_string()),
+            "clones" => ("duplicates".to_string(), "duplicated_by".to_string()),
+            "causes" => ("blocks".to_string(), "blocked_by".to_string()),
+            _ => (
+                format!("custom_{}", link_type_name.to_lowercase()),
+                format!("custom_{}_inward", link_type_name.to_lowercase()),
+            ),
+        }
+    }
+
+    /// Check if a link type is one of our standard types (async helper)
+    fn is_standard_link_type(&self, link_type_name: &str) -> bool {
+        matches!(
+            link_type_name.to_lowercase().as_str(),
+            "blocks" | "duplicate" | "duplicates" | "relates" | "relates to" | "clones" | "causes"
+        )
+    }
+
+    /// Extract epic link from issue (async helper)
+    fn extract_epic_link(&self, issue: &Issue) -> Option<String> {
+        // This is a common custom field for Epic Link
+        // You may need to adjust the field name based on your Jira configuration
+        issue.field::<String>("customfield_10014").and_then(|result| result.ok())
+            .or_else(|| issue.field::<String>("customfield_10008").and_then(|result| result.ok()))
+            .or_else(|| issue.field::<String>("Epic Link").and_then(|result| result.ok()))
+    }
+
+    /// Get current relationships for multiple issues efficiently (async version)
+    ///
+    /// This is more efficient than calling `get_relationship_graph` for each issue
+    /// individually when you need relationships for a known set of issues.
+    ///
+    /// # Arguments
+    ///
+    /// * `issue_keys` - List of issue keys to get relationships for
+    /// * `options` - Optional configuration for relationship extraction
+    ///
+    /// # Returns
+    ///
+    /// A `RelationshipGraph` containing relationships for all specified issues
+    pub async fn get_bulk_relationships(
+        &self,
+        issue_keys: &[String],
+        options: Option<GraphOptions>,
+    ) -> Result<RelationshipGraph> {
+        let options = options.unwrap_or_default();
+        let mut graph = RelationshipGraph::new("jira_bulk_async".to_string());
+        graph.metadata.max_depth = 0; // Direct relationships only
+
+        // Process issues sequentially for now (can be optimized later)
+        for issue_key in issue_keys {
+            match self.get(issue_key).await {
+                Ok(issue) => {
+                    let relationships = self.extract_relationships_from_issue(&issue, &options)?;
+                    graph.add_issue(issue_key.clone(), relationships);
+                }
+                Err(_) => {
+                    // Issue not found or not accessible, skip but could log
+                    continue;
+                }
+            }
+        }
+
+        Ok(graph)
     }
 }
 
