@@ -1,5 +1,7 @@
 //! Interfaces for accessing and managing components
 
+use serde::{Deserialize, Serialize};
+
 // Ours
 use crate::{Component, Jira, Result};
 

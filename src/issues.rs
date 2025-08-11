@@ -1,7 +1,7 @@
 //! Interfaces for accessing and managing issues
 
 // Third party
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use url::form_urlencoded;
 

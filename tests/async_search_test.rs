@@ -1,9 +1,6 @@
 #[cfg(feature = "async")]
 mod async_search_tests {
-    extern crate futures;
-    extern crate gouqi;
-    extern crate serde_json;
-    extern crate tokio;
+    // No extern crate needed in Rust 2024 edition
 
     // Import StreamExt for tests that use stream.next()
     #[allow(unused_imports)]

@@ -1,5 +1,4 @@
-extern crate serde_json;
-extern crate url;
+// No extern crate needed in Rust 2024 edition
 
 use gouqi::*;
 use std::collections::HashMap;

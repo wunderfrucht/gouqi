@@ -52,18 +52,7 @@
 //! # }
 //! ```
 
-extern crate reqwest;
-extern crate serde;
-extern crate tracing;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-extern crate url;
-
-#[cfg(feature = "async")]
-extern crate futures;
-#[cfg(feature = "async")]
-extern crate tokio;
+// No extern crate needed in Rust 2024 edition - dependencies are automatically available
 
 // Public re-exports only
 // No imports needed for the root module

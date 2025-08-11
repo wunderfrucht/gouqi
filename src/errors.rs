@@ -1,89 +1,36 @@
-// Third party
-use reqwest::Error as HttpError;
 use reqwest::StatusCode;
-use serde_json::error::Error as SerdeError;
-use std::io::Error as IoError;
-use url::ParseError;
+use thiserror::Error;
 
 // Ours
 use crate::Errors;
 
 /// An enumeration over potential errors that may
 /// happen when sending a request to jira
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum Error {
     /// Error associated with http request
-    Http(HttpError),
+    #[error("HTTP error: {0}")]
+    Http(#[from] reqwest::Error),
     /// Error associated IO
-    IO(IoError),
+    #[error("IO error: {0}")]
+    IO(#[from] std::io::Error),
     /// Error associated with parsing or serializing
-    Serde(SerdeError),
+    #[error("Serialization error: {0}")]
+    Serde(#[from] serde_json::Error),
     /// Client request errors
+    #[error("Jira client error ({code}):\n{errors:#?}")]
     Fault { code: StatusCode, errors: Errors },
     /// Invalid credentials
+    #[error("Could not connect to Jira: Unauthorized")]
     Unauthorized,
     /// HTTP method is not allowed
+    #[error("Jira request error: MethodNotAllowed")]
     MethodNotAllowed,
     /// Page not found
+    #[error("Jira request error: NotFound")]
     NotFound,
     /// URI parse error
-    ParseError(ParseError),
+    #[error("Could not connect to Jira: {0}")]
+    ParseError(#[from] url::ParseError),
 }
 
-impl From<ParseError> for Error {
-    fn from(error: ParseError) -> Error {
-        Error::ParseError(error)
-    }
-}
-
-impl From<SerdeError> for Error {
-    fn from(error: SerdeError) -> Error {
-        Error::Serde(error)
-    }
-}
-
-impl From<HttpError> for Error {
-    fn from(error: HttpError) -> Error {
-        Error::Http(error)
-    }
-}
-
-impl From<IoError> for Error {
-    fn from(error: IoError) -> Error {
-        Error::IO(error)
-    }
-}
-
-impl ::std::fmt::Display for Error {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        use crate::Error::*;
-
-        match *self {
-            Http(ref e) => writeln!(f, "HTTP Error: {e}"),
-            IO(ref e) => writeln!(f, "IO Error: {e}"),
-            Serde(ref e) => writeln!(f, "Serialization Error: {e}"),
-            Fault {
-                ref code,
-                ref errors,
-            } => writeln!(f, "Jira Client Error ({code}):\n{errors:#?}"),
-            ParseError(ref e) => writeln!(f, "Could not connect to Jira: {e:?}!"),
-            Unauthorized => writeln!(f, "Could not connect to Jira: Unauthorized"),
-            MethodNotAllowed => writeln!(f, "Jira request error: MethodNotAllowed"),
-            NotFound => writeln!(f, "Jira request error: NotFound"),
-        }
-    }
-}
-
-impl ::std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        use crate::Error::*;
-
-        match *self {
-            Http(ref e) => Some(e),
-            IO(ref e) => Some(e),
-            Serde(ref e) => Some(e),
-            Fault { .. } => None,
-            _ => None,
-        }
-    }
-}
