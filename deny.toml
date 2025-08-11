@@ -48,7 +48,8 @@ allow = [
     "Unicode-DFS-2016",
     "Unicode-DFS-2015",
     "Unicode-TOU",
-    "Unicode-3.0"
+    "Unicode-3.0",
+    "CDLA-Permissive-2.0"
 ]
 
 # The confidence threshold for detecting a license from license text.
