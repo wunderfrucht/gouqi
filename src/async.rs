@@ -163,7 +163,7 @@ impl Jira {
     ///
     /// An `AsyncBoards` instance configured with this client
     #[tracing::instrument]
-    pub fn boards(&self) -> crate::boards::AsyncBoards {
+    pub fn boards(&self) -> crate::boards::AsyncBoards<'_> {
         crate::boards::AsyncBoards::new(self)
     }
 
