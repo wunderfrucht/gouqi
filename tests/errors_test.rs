@@ -9,10 +9,7 @@ fn test_error_display() {
         "Could not connect to Jira: Unauthorized"
     );
     let error = Error::MethodNotAllowed;
-    assert_eq!(
-        format!("{}", error),
-        "Jira request error: MethodNotAllowed"
-    );
+    assert_eq!(format!("{}", error), "Jira request error: MethodNotAllowed");
 
     let error = Error::NotFound;
     assert_eq!(format!("{}", error), "Jira request error: NotFound");

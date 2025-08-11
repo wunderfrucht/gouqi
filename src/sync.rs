@@ -2,9 +2,9 @@ use std::io::Read;
 use tracing::debug;
 
 use reqwest::header::CONTENT_TYPE;
-use reqwest::{blocking::Client, Method};
-use serde::de::DeserializeOwned;
+use reqwest::{Method, blocking::Client};
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 use crate::attachments::Attachments;
 use crate::boards::Boards;

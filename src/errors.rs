@@ -33,4 +33,3 @@ pub enum Error {
     #[error("Could not connect to Jira: {0}")]
     ParseError(#[from] url::ParseError),
 }
-
