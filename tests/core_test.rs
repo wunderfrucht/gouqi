@@ -77,7 +77,7 @@ mod pagination_tests {
 #[cfg(test)]
 mod async_core_tests {
     use super::*;
-    use gouqi::{r#async::Jira as AsyncJira, Result};
+    use gouqi::{Result, r#async::Jira as AsyncJira};
 
     #[test]
     fn test_async_client_core_new() {

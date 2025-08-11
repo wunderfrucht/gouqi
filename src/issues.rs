@@ -12,9 +12,9 @@ use crate::{
 };
 
 #[cfg(feature = "async")]
-use futures::stream::Stream;
-#[cfg(feature = "async")]
 use futures::Future;
+#[cfg(feature = "async")]
+use futures::stream::Stream;
 #[cfg(feature = "async")]
 use std::pin::Pin;
 

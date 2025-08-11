@@ -9,9 +9,9 @@ use crate::sync::Jira;
 use crate::{Issue, Result, SearchOptions, SearchResults};
 
 #[cfg(feature = "async")]
-use futures::stream::Stream;
-#[cfg(feature = "async")]
 use futures::Future;
+#[cfg(feature = "async")]
+use futures::stream::Stream;
 #[cfg(feature = "async")]
 use std::pin::Pin;
 

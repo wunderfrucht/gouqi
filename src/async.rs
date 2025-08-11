@@ -47,8 +47,8 @@ use tracing::debug;
 
 use reqwest::header::CONTENT_TYPE;
 use reqwest::{Client, Method};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 use crate::core::ClientCore;
 use crate::rep::Session;
