@@ -70,7 +70,7 @@ pub mod issues;
 pub mod relationships;
 mod rep;
 mod search;
-mod transitions;
+pub mod transitions;
 pub mod versions;
 
 pub use crate::attachments::*;
