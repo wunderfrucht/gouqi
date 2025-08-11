@@ -1,4 +1,4 @@
-use gouqi::{sprints::*, boards::Board, Credentials, Jira, SearchOptions};
+use gouqi::{Credentials, Jira, SearchOptions, boards::Board, sprints::*};
 use serde_json::json;
 
 fn create_test_board() -> Board {
@@ -15,7 +15,7 @@ fn create_test_board() -> Board {
 fn test_sprints_creation() {
     let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
     let sprints = jira.sprints();
-    
+
     // Just testing that we can create the sprints interface
     assert!(std::mem::size_of_val(&sprints) > 0);
 }
@@ -23,7 +23,7 @@ fn test_sprints_creation() {
 #[test]
 fn test_sprint_create_success() {
     let mut server = mockito::Server::new();
-    
+
     let mock_sprint = json!({
         "id": 1,
         "self": format!("{}/rest/agile/1.0/sprint/1", server.url()),
@@ -58,7 +58,7 @@ fn test_sprint_create_success() {
 #[test]
 fn test_sprint_get_success() {
     let mut server = mockito::Server::new();
-    
+
     let mock_sprint = json!({
         "id": 42,
         "self": format!("{}/rest/agile/1.0/sprint/42", server.url()),
@@ -94,7 +94,7 @@ fn test_sprint_get_success() {
 #[test]
 fn test_sprint_get_not_found() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("GET", "/rest/agile/1.0/sprint/999")
         .with_status(404)
@@ -111,7 +111,7 @@ fn test_sprint_get_not_found() {
 #[test]
 fn test_sprint_move_issues_success() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("POST", "/rest/agile/1.0/sprint/1/issue")
         .with_status(204)
@@ -129,7 +129,7 @@ fn test_sprint_move_issues_success() {
 #[test]
 fn test_sprint_move_issues_failure() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("POST", "/rest/agile/1.0/sprint/1/issue")
         .with_status(400)
@@ -147,7 +147,7 @@ fn test_sprint_move_issues_failure() {
 #[test]
 fn test_sprint_list_success() {
     let mut server = mockito::Server::new();
-    
+
     let mock_sprints = json!({
         "maxResults": 50,
         "startAt": 0,
@@ -191,11 +191,11 @@ fn test_sprint_list_success() {
     assert_eq!(sprint_results.start_at, 0);
     assert!(sprint_results.is_last);
     assert_eq!(sprint_results.values.len(), 2);
-    
+
     assert_eq!(sprint_results.values[0].id, 1);
     assert_eq!(sprint_results.values[0].name, "Sprint 1");
     assert_eq!(sprint_results.values[0].state, Some("active".to_string()));
-    
+
     assert_eq!(sprint_results.values[1].id, 2);
     assert_eq!(sprint_results.values[1].name, "Sprint 2");
     assert_eq!(sprint_results.values[1].state, Some("closed".to_string()));
@@ -207,7 +207,7 @@ fn test_sprint_list_success() {
 #[test]
 fn test_sprint_list_with_search_options() {
     let mut server = mockito::Server::new();
-    
+
     let mock_sprints = json!({
         "maxResults": 10,
         "startAt": 5,
@@ -224,7 +224,10 @@ fn test_sprint_list_with_search_options() {
     });
 
     server
-        .mock("GET", "/rest/agile/1.0/board/1/sprint?maxResults=10&startAt=5")
+        .mock(
+            "GET",
+            "/rest/agile/1.0/board/1/sprint?maxResults=10&startAt=5",
+        )
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_sprints.to_string())
@@ -237,7 +240,7 @@ fn test_sprint_list_with_search_options() {
         .max_results(10)
         .start_at(5)
         .build();
-    
+
     let result = jira.sprints().list(&board, &options);
 
     assert!(result.is_ok());
@@ -252,7 +255,7 @@ fn test_sprint_list_with_search_options() {
 #[test]
 fn test_sprint_iterator_single_page() {
     let mut server = mockito::Server::new();
-    
+
     let mock_sprints = json!({
         "maxResults": 50,
         "startAt": 0,
@@ -307,7 +310,7 @@ fn test_sprint_iterator_single_page() {
 #[test]
 fn test_sprint_iterator_multiple_pages() {
     let mut server = mockito::Server::new();
-    
+
     // First page
     let first_page = json!({
         "maxResults": 1,
@@ -348,7 +351,10 @@ fn test_sprint_iterator_multiple_pages() {
         .create();
 
     server
-        .mock("GET", "/rest/agile/1.0/board/1/sprint?maxResults=1&startAt=1")
+        .mock(
+            "GET",
+            "/rest/agile/1.0/board/1/sprint?maxResults=1&startAt=1",
+        )
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(second_page.to_string())
@@ -356,11 +362,8 @@ fn test_sprint_iterator_multiple_pages() {
 
     let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
     let board = create_test_board();
-    let options = SearchOptions::default()
-        .as_builder()
-        .max_results(1)
-        .build();
-    
+    let options = SearchOptions::default().as_builder().max_results(1).build();
+
     let mut iter = jira.sprints().iter(&board, &options).unwrap();
 
     // First sprint from first page
@@ -382,7 +385,7 @@ fn test_sprint_iterator_multiple_pages() {
 #[test]
 fn test_sprint_iterator_error_handling() {
     let mut server = mockito::Server::new();
-    
+
     // First successful request
     let first_page = json!({
         "maxResults": 1,
@@ -408,7 +411,10 @@ fn test_sprint_iterator_error_handling() {
 
     // Second request fails
     server
-        .mock("GET", "/rest/agile/1.0/board/1/sprint?maxResults=1&startAt=1")
+        .mock(
+            "GET",
+            "/rest/agile/1.0/board/1/sprint?maxResults=1&startAt=1",
+        )
         .with_status(500)
         .with_header("content-type", "application/json")
         .with_body(json!({"errorMessages": ["Internal server error"]}).to_string())
@@ -416,11 +422,8 @@ fn test_sprint_iterator_error_handling() {
 
     let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
     let board = create_test_board();
-    let options = SearchOptions::default()
-        .as_builder()
-        .max_results(1)
-        .build();
-    
+    let options = SearchOptions::default().as_builder().max_results(1).build();
+
     let mut iter = jira.sprints().iter(&board, &options).unwrap();
 
     // First sprint should work
@@ -471,12 +474,12 @@ fn test_sprint_deserialize_with_dates() {
     assert_eq!(sprint.name, "Complete Sprint");
     assert_eq!(sprint.state, Some("closed".to_string()));
     assert_eq!(sprint.origin_board_id, Some(42));
-    
+
     // Verify dates are parsed correctly
     assert!(sprint.start_date.is_some());
     assert!(sprint.end_date.is_some());
     assert!(sprint.complete_date.is_some());
-    
+
     let start_date = sprint.start_date.unwrap();
     assert_eq!(start_date.year(), 2023);
     assert_eq!(start_date.month() as u8, 1);

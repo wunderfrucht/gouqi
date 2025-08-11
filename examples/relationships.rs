@@ -7,10 +7,10 @@
 //!
 //! Run with: cargo run --example relationships
 
+use gouqi::relationships::{GraphOptions, RelationshipGraph};
 use gouqi::{Credentials, Jira};
-use gouqi::relationships::{RelationshipGraph, GraphOptions};
 use std::env;
-use tracing::{info, error};
+use tracing::{error, info};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing (this is optional - you may not have tracing_subscriber)
@@ -18,16 +18,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Check for required environment variables
     let host = env::var("JIRA_HOST").map_err(|_| "Missing JIRA_HOST environment variable")?;
-    let issue_key = env::args()
-        .nth(1)
-        .unwrap_or_else(|| "DEMO-1".to_string());
-    
+    let issue_key = env::args().nth(1).unwrap_or_else(|| "DEMO-1".to_string());
+
     info!("Connecting to Jira at: {}", host);
     info!("Analyzing relationships for issue: {}", issue_key);
 
     // Create Jira client
-    let credentials = if let (Ok(username), Ok(password)) = 
-        (env::var("JIRA_USERNAME"), env::var("JIRA_PASSWORD")) {
+    let credentials = if let (Ok(username), Ok(password)) =
+        (env::var("JIRA_USERNAME"), env::var("JIRA_PASSWORD"))
+    {
         Credentials::Basic(username, password)
     } else if let Ok(token) = env::var("JIRA_TOKEN") {
         Credentials::Bearer(token)
@@ -43,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match jira.issues().get_relationship_graph(&issue_key, 2, None) {
         Ok(graph) => {
             print_graph_summary(&graph);
-            
+
             // Export to JSON for AI agent processing
             let json = serde_json::to_string_pretty(&graph)?;
             println!("\n=== JSON Export (AI-friendly format) ===");
@@ -61,7 +60,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         bidirectional: true,
     };
 
-    match jira.issues().get_relationship_graph(&issue_key, 3, Some(blocking_options)) {
+    match jira
+        .issues()
+        .get_relationship_graph(&issue_key, 3, Some(blocking_options))
+    {
         Ok(blocking_graph) => {
             print_graph_summary(&blocking_graph);
             analyze_blocking_chain(&blocking_graph, &issue_key);
@@ -103,7 +105,7 @@ fn print_graph_summary(graph: &RelationshipGraph) {
     for (issue_key, relationships) in &graph.issues {
         if !relationships.is_empty() {
             println!("\nIssue: {}", issue_key);
-            
+
             if !relationships.blocks.is_empty() {
                 println!("  Blocks: {}", relationships.blocks.join(", "));
             }
@@ -137,7 +139,7 @@ fn print_graph_summary(graph: &RelationshipGraph) {
 
 fn analyze_blocking_chain(graph: &RelationshipGraph, root_issue: &str) {
     println!("\n=== Blocking Chain Analysis ===");
-    
+
     // Find what this issue blocks (chain forward)
     if let Some(relationships) = graph.get_relationships(root_issue) {
         if !relationships.blocks.is_empty() {
@@ -146,7 +148,7 @@ fn analyze_blocking_chain(graph: &RelationshipGraph, root_issue: &str) {
                 print_blocking_chain(graph, blocked_issue, 1);
             }
         }
-        
+
         // Find what blocks this issue (chain backward)
         if !relationships.blocked_by.is_empty() {
             println!("{} is blocked by:", root_issue);
@@ -155,7 +157,7 @@ fn analyze_blocking_chain(graph: &RelationshipGraph, root_issue: &str) {
             }
         }
     }
-    
+
     // Check for circular dependencies
     if let Some(path) = graph.get_path(root_issue, root_issue) {
         if path.len() > 1 {
@@ -167,10 +169,11 @@ fn analyze_blocking_chain(graph: &RelationshipGraph, root_issue: &str) {
 fn print_blocking_chain(graph: &RelationshipGraph, issue: &str, depth: usize) {
     let indent = "  ".repeat(depth);
     println!("{}├─ {}", indent, issue);
-    
+
     if let Some(relationships) = graph.get_relationships(issue) {
         for blocked_issue in &relationships.blocks {
-            if depth < 5 { // Limit depth to avoid infinite loops
+            if depth < 5 {
+                // Limit depth to avoid infinite loops
                 print_blocking_chain(graph, blocked_issue, depth + 1);
             }
         }
@@ -180,10 +183,11 @@ fn print_blocking_chain(graph: &RelationshipGraph, issue: &str, depth: usize) {
 fn print_blocking_chain_reverse(graph: &RelationshipGraph, issue: &str, depth: usize) {
     let indent = "  ".repeat(depth);
     println!("{}├─ {}", indent, issue);
-    
+
     if let Some(relationships) = graph.get_relationships(issue) {
         for blocking_issue in &relationships.blocked_by {
-            if depth < 5 { // Limit depth to avoid infinite loops
+            if depth < 5 {
+                // Limit depth to avoid infinite loops
                 print_blocking_chain_reverse(graph, blocking_issue, depth + 1);
             }
         }

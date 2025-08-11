@@ -5,7 +5,7 @@ use serde_json::json;
 fn test_versions_creation() {
     let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
     let versions = jira.versions();
-    
+
     // Just testing that we can create the versions interface
     assert!(std::mem::size_of_val(&versions) > 0);
 }
@@ -13,7 +13,7 @@ fn test_versions_creation() {
 #[test]
 fn test_project_versions_success() {
     let mut server = mockito::Server::new();
-    
+
     let mock_versions = json!([
         {
             "id": "10000",
@@ -24,7 +24,7 @@ fn test_project_versions_success() {
             "self": format!("{}/rest/api/2/version/10000", server.url())
         },
         {
-            "id": "10001", 
+            "id": "10001",
             "name": "Version 2.0",
             "archived": false,
             "released": false,
@@ -46,13 +46,13 @@ fn test_project_versions_success() {
     assert!(result.is_ok());
     let versions = result.unwrap();
     assert_eq!(versions.len(), 2);
-    
+
     assert_eq!(versions[0].id, "10000");
     assert_eq!(versions[0].name, "Version 1.0");
     assert!(!versions[0].archived);
     assert!(versions[0].released);
     assert_eq!(versions[0].project_id, 10001);
-    
+
     assert_eq!(versions[1].id, "10001");
     assert_eq!(versions[1].name, "Version 2.0");
     assert!(!versions[1].archived);
@@ -63,7 +63,7 @@ fn test_project_versions_success() {
 #[test]
 fn test_project_versions_empty() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("GET", "/rest/api/2/project/EMPTY/versions")
         .with_status(200)
@@ -82,7 +82,7 @@ fn test_project_versions_empty() {
 #[test]
 fn test_project_versions_not_found() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("GET", "/rest/api/2/project/NOTFOUND/versions")
         .with_status(404)
@@ -99,7 +99,7 @@ fn test_project_versions_not_found() {
 #[test]
 fn test_create_version_success() {
     let mut server = mockito::Server::new();
-    
+
     let mock_version = json!({
         "id": "10002",
         "name": "New Version",
@@ -132,7 +132,7 @@ fn test_create_version_success() {
 #[test]
 fn test_create_version_with_string() {
     let mut server = mockito::Server::new();
-    
+
     let mock_version = json!({
         "id": "10003",
         "name": "Version from String",
@@ -161,7 +161,7 @@ fn test_create_version_with_string() {
 #[test]
 fn test_create_version_invalid_project() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("POST", "/rest/api/2/version")
         .with_status(400)
@@ -178,7 +178,7 @@ fn test_create_version_invalid_project() {
 #[test]
 fn test_move_after_success() {
     let mut server = mockito::Server::new();
-    
+
     let mock_version = json!({
         "id": "10000",
         "name": "Moved Version",
@@ -204,7 +204,7 @@ fn test_move_after_success() {
         project_id: 10001,
         self_link: "http://test.com/version/10000".to_string(),
     };
-    
+
     let result = jira.versions().move_after(&version, "after-version-id");
 
     assert!(result.is_ok());
@@ -216,7 +216,7 @@ fn test_move_after_success() {
 #[test]
 fn test_move_after_with_string() {
     let mut server = mockito::Server::new();
-    
+
     let mock_version = json!({
         "id": "10000",
         "name": "Moved Version",
@@ -242,7 +242,7 @@ fn test_move_after_with_string() {
         project_id: 10001,
         self_link: "http://test.com/version/10000".to_string(),
     };
-    
+
     let after_id = String::from("string-after-id");
     let result = jira.versions().move_after(&version, after_id);
 
@@ -252,7 +252,7 @@ fn test_move_after_with_string() {
 #[test]
 fn test_move_after_version_not_found() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("POST", "/rest/api/2/version/99999/move")
         .with_status(404)
@@ -269,7 +269,7 @@ fn test_move_after_version_not_found() {
         project_id: 10001,
         self_link: "http://test.com/version/99999".to_string(),
     };
-    
+
     let result = jira.versions().move_after(&version, "after-id");
 
     assert!(result.is_err());
@@ -278,7 +278,7 @@ fn test_move_after_version_not_found() {
 #[test]
 fn test_release_version_success() {
     let mut server = mockito::Server::new();
-    
+
     let mock_version = json!({
         "id": "10000",
         "name": "Released Version",
@@ -304,7 +304,7 @@ fn test_release_version_success() {
         project_id: 10001,
         self_link: "http://test.com/version/10000".to_string(),
     };
-    
+
     let result = jira.versions().release(&version, None);
 
     assert!(result.is_ok());
@@ -313,7 +313,7 @@ fn test_release_version_success() {
 #[test]
 fn test_release_version_with_move_unfixed_issues() {
     let mut server = mockito::Server::new();
-    
+
     let mock_version = json!({
         "id": "10000",
         "name": "Released Version",
@@ -339,7 +339,7 @@ fn test_release_version_with_move_unfixed_issues() {
         project_id: 10001,
         self_link: "http://test.com/version/10000".to_string(),
     };
-    
+
     let target_version = gouqi::Version {
         id: "10001".to_string(),
         name: "Target Version".to_string(),
@@ -348,7 +348,7 @@ fn test_release_version_with_move_unfixed_issues() {
         project_id: 10001,
         self_link: "http://test.com/version/10001".to_string(),
     };
-    
+
     let result = jira.versions().release(&version, Some(&target_version));
 
     assert!(result.is_ok());
@@ -366,7 +366,7 @@ fn test_release_already_released_version() {
         project_id: 10001,
         self_link: "http://test.com/version/10000".to_string(),
     };
-    
+
     let result = jira.versions().release(&version, None);
 
     // Should succeed without making API call
@@ -376,7 +376,7 @@ fn test_release_already_released_version() {
 #[test]
 fn test_release_version_server_error() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("PUT", "/rest/api/2/version/10000")
         .with_status(500)
@@ -393,7 +393,7 @@ fn test_release_version_server_error() {
         project_id: 10001,
         self_link: "http://test.com/version/10000".to_string(),
     };
-    
+
     let result = jira.versions().release(&version, None);
 
     assert!(result.is_err());
@@ -417,8 +417,11 @@ fn test_version_serialization_deserialization() {
     assert!(version.archived);
     assert!(!version.released);
     assert_eq!(version.project_id, 54321);
-    assert_eq!(version.self_link, "http://test.com/rest/api/2/version/12345");
-    
+    assert_eq!(
+        version.self_link,
+        "http://test.com/rest/api/2/version/12345"
+    );
+
     // Test serialization back to JSON
     let serialized = serde_json::to_value(&version).unwrap();
     assert_eq!(serialized["id"], "12345");
@@ -426,7 +429,10 @@ fn test_version_serialization_deserialization() {
     assert_eq!(serialized["archived"], true);
     assert_eq!(serialized["released"], false);
     assert_eq!(serialized["projectId"], 54321);
-    assert_eq!(serialized["self"], "http://test.com/rest/api/2/version/12345");
+    assert_eq!(
+        serialized["self"],
+        "http://test.com/rest/api/2/version/12345"
+    );
 }
 
 #[test]
@@ -440,7 +446,7 @@ fn test_version_creation_body_serialization() {
     assert!(json.contains("New Test Version"));
     assert!(json.contains("projectId"));
     assert!(json.contains("12345"));
-    
+
     // Verify correct field naming
     let json_value: serde_json::Value = serde_json::to_value(&creation_body).unwrap();
     assert_eq!(json_value["name"], "New Test Version");
@@ -469,8 +475,11 @@ fn test_version_update_body_serialization() {
     let json_value: serde_json::Value = serde_json::to_value(&update_body).unwrap();
     assert_eq!(json_value["released"], true);
     assert_eq!(json_value["archived"], false);
-    assert_eq!(json_value["moveUnfixedIssuesTo"], "target-version-self-link");
-    
+    assert_eq!(
+        json_value["moveUnfixedIssuesTo"],
+        "target-version-self-link"
+    );
+
     // Test with None value
     let update_body_none = gouqi::VersionUpdateBody {
         released: false,
@@ -487,7 +496,7 @@ fn test_version_update_body_serialization() {
 #[test]
 fn test_versions_interface_multiple_operations() {
     let mut server = mockito::Server::new();
-    
+
     // Mock project versions
     let mock_project_versions = json!([
         {
@@ -531,8 +540,10 @@ fn test_versions_interface_multiple_operations() {
     let project_versions = versions_interface.project_versions("MULTI").unwrap();
     assert_eq!(project_versions.len(), 1);
     assert_eq!(project_versions[0].name, "Version 1.0");
-    
-    let new_version = versions_interface.create(10001, "Multi Test Version").unwrap();
+
+    let new_version = versions_interface
+        .create(10001, "Multi Test Version")
+        .unwrap();
     assert_eq!(new_version.id, "10002");
     assert_eq!(new_version.name, "Multi Test Version");
 }

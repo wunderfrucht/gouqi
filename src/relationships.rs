@@ -37,19 +37,19 @@ pub struct IssueRelationships {
     pub duplicates: Vec<String>,
     /// Issues that duplicate this issue
     pub duplicated_by: Vec<String>,
-    
+
     // Hierarchical relationships
     /// Parent issue (subtask -> task relationship)
     pub parent: Option<String>,
     /// Child issues (task -> subtask relationship)
     pub children: Vec<String>,
-    
+
     // Epic/Story relationships
     /// Epic that contains this issue
     pub epic: Option<String>,
     /// Stories contained in this epic
     pub stories: Vec<String>,
-    
+
     // Custom relationship types
     /// Custom link types with their related issues
     pub custom: HashMap<String, Vec<String>>,
@@ -107,7 +107,6 @@ pub struct ApplyOptions {
     /// Maximum number of operations to perform
     pub max_operations: Option<usize>,
 }
-
 
 /// Result of applying a relationship graph
 #[derive(Debug)]
@@ -214,24 +213,27 @@ impl RelationshipGraph {
 
     /// Count total relationships in the graph
     fn count_relationships(&self) -> usize {
-        self.issues.values().map(|rel| {
-            rel.blocks.len() +
-            rel.blocked_by.len() +
-            rel.relates_to.len() +
-            rel.duplicates.len() +
-            rel.duplicated_by.len() +
-            rel.children.len() +
-            if rel.parent.is_some() { 1 } else { 0 } +
-            if rel.epic.is_some() { 1 } else { 0 } +
-            rel.stories.len() +
-            rel.custom.values().map(|v| v.len()).sum::<usize>()
-        }).sum()
+        self.issues
+            .values()
+            .map(|rel| {
+                rel.blocks.len()
+                    + rel.blocked_by.len()
+                    + rel.relates_to.len()
+                    + rel.duplicates.len()
+                    + rel.duplicated_by.len()
+                    + rel.children.len()
+                    + if rel.parent.is_some() { 1 } else { 0 }
+                    + if rel.epic.is_some() { 1 } else { 0 }
+                    + rel.stories.len()
+                    + rel.custom.values().map(|v| v.len()).sum::<usize>()
+            })
+            .sum()
     }
 
     /// Get all issues that are related to the given issue
     pub fn get_related_issues(&self, issue_key: &str) -> HashSet<String> {
         let mut related = HashSet::new();
-        
+
         if let Some(relationships) = self.get_relationships(issue_key) {
             related.extend(relationships.blocks.iter().cloned());
             related.extend(relationships.blocked_by.iter().cloned());
@@ -240,19 +242,19 @@ impl RelationshipGraph {
             related.extend(relationships.duplicated_by.iter().cloned());
             related.extend(relationships.children.iter().cloned());
             related.extend(relationships.stories.iter().cloned());
-            
+
             if let Some(parent) = &relationships.parent {
                 related.insert(parent.clone());
             }
             if let Some(epic) = &relationships.epic {
                 related.insert(epic.clone());
             }
-            
+
             for custom_links in relationships.custom.values() {
                 related.extend(custom_links.iter().cloned());
             }
         }
-        
+
         related
     }
 
@@ -271,13 +273,13 @@ impl RelationshipGraph {
 
         while let Some(current) = queue.pop_front() {
             let related = self.get_related_issues(&current);
-            
+
             for neighbor in related {
                 if neighbor == to {
                     // Reconstruct path
                     let mut path = vec![to.to_string()];
                     let mut current_node = current;
-                    
+
                     while let Some(p) = parent.get(&current_node) {
                         path.push(current_node);
                         current_node = p.clone();
@@ -286,7 +288,7 @@ impl RelationshipGraph {
                     path.reverse();
                     return Some(path);
                 }
-                
+
                 if !visited.contains(&neighbor) {
                     visited.insert(neighbor.clone());
                     parent.insert(neighbor.clone(), current.clone());
@@ -307,16 +309,16 @@ impl IssueRelationships {
 
     /// Check if this issue has any relationships
     pub fn is_empty(&self) -> bool {
-        self.blocks.is_empty() &&
-        self.blocked_by.is_empty() &&
-        self.relates_to.is_empty() &&
-        self.duplicates.is_empty() &&
-        self.duplicated_by.is_empty() &&
-        self.children.is_empty() &&
-        self.parent.is_none() &&
-        self.epic.is_none() &&
-        self.stories.is_empty() &&
-        self.custom.is_empty()
+        self.blocks.is_empty()
+            && self.blocked_by.is_empty()
+            && self.relates_to.is_empty()
+            && self.duplicates.is_empty()
+            && self.duplicated_by.is_empty()
+            && self.children.is_empty()
+            && self.parent.is_none()
+            && self.epic.is_none()
+            && self.stories.is_empty()
+            && self.custom.is_empty()
     }
 
     /// Add a relationship of the given type
@@ -332,7 +334,8 @@ impl IssueRelationships {
             "epic" => self.epic = Some(target_issue),
             "story" => self.stories.push(target_issue),
             custom_type => {
-                self.custom.entry(custom_type.to_string())
+                self.custom
+                    .entry(custom_type.to_string())
                     .or_default()
                     .push(target_issue);
             }
@@ -348,12 +351,16 @@ impl IssueRelationships {
             "duplicates" => self.duplicates.retain(|issue| issue != target_issue),
             "duplicated_by" => self.duplicated_by.retain(|issue| issue != target_issue),
             "child" => self.children.retain(|issue| issue != target_issue),
-            "parent" => if self.parent.as_ref() == Some(&target_issue.to_string()) {
-                self.parent = None;
-            },
-            "epic" => if self.epic.as_ref() == Some(&target_issue.to_string()) {
-                self.epic = None;
-            },
+            "parent" => {
+                if self.parent.as_ref() == Some(&target_issue.to_string()) {
+                    self.parent = None;
+                }
+            }
+            "epic" => {
+                if self.epic.as_ref() == Some(&target_issue.to_string()) {
+                    self.epic = None;
+                }
+            }
             "story" => self.stories.retain(|issue| issue != target_issue),
             custom_type => {
                 if let Some(custom_links) = self.custom.get_mut(custom_type) {
@@ -369,7 +376,7 @@ impl IssueRelationships {
     /// Get all issues related through any relationship type
     pub fn get_all_related(&self) -> HashSet<String> {
         let mut related = HashSet::new();
-        
+
         related.extend(self.blocks.iter().cloned());
         related.extend(self.blocked_by.iter().cloned());
         related.extend(self.relates_to.iter().cloned());
@@ -377,18 +384,18 @@ impl IssueRelationships {
         related.extend(self.duplicated_by.iter().cloned());
         related.extend(self.children.iter().cloned());
         related.extend(self.stories.iter().cloned());
-        
+
         if let Some(parent) = &self.parent {
             related.insert(parent.clone());
         }
         if let Some(epic) = &self.epic {
             related.insert(epic.clone());
         }
-        
+
         for custom_links in self.custom.values() {
             related.extend(custom_links.iter().cloned());
         }
-        
+
         related
     }
 }
