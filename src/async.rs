@@ -22,7 +22,7 @@
 //! println!("Found {} issues", results.total);
 //!
 //! // Get board information
-//! let board = jira.boards().get(42).await?;
+//! let board = jira.boards().get(42u64).await?;
 //! println!("Board name: {}", board.name);
 //!
 //! // List all boards
@@ -137,9 +137,10 @@ impl Jira {
     /// # #[cfg(feature = "async")]
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # use gouqi::{Credentials, r#async::Jira, SearchOptions};
+    /// # use futures::stream::TryStreamExt;
     /// # let jira = Jira::new("https://jira.example.com", Credentials::Anonymous)?;
     /// // Get a specific board by ID
-    /// let board = jira.boards().get(42).await?;
+    /// let board = jira.boards().get(42u64).await?;
     /// println!("Board: {}", board.name);
     ///
     /// // List all boards with pagination
@@ -150,9 +151,9 @@ impl Jira {
     /// }
     ///
     /// // Use streaming API for efficient pagination
-    /// let mut stream = jira.boards().stream(&options).await?;
-    /// while let Some(result) = stream.try_next().await {
-    ///     let board = result?;
+    /// let boards = jira.boards();
+    /// let mut stream = boards.stream(&options).await?;
+    /// while let Some(board) = stream.try_next().await? {
     ///     println!("Streamed board: {}", board.name);
     /// }
     /// # Ok(())
