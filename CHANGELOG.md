@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### 🚀 Features
+
+- Upgrade to Rust 2024 edition and modernize error handling
+
+### 🐛 Bug Fixes
+
+- Use localhost for async HTTP method tests to avoid timeouts
+- Use valid port number for async test localhost URL
+
+### 🎨 Styling
+
+- Apply cargo fmt after Rust 2024 upgrade
+
 ## [0.11.0] - 2025-08-11
 
 ### 🚀 Features
