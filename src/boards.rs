@@ -1,6 +1,7 @@
 //! Interfaces for accessing and managing boards
 
 // Third party
+use serde::Deserialize;
 use url::form_urlencoded;
 
 // Ours

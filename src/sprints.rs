@@ -1,6 +1,7 @@
 //! Interfaces for accessing and managing sprints
 
 // Third party
+use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use tracing::info;
 use url::form_urlencoded;

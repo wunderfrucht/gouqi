@@ -1,7 +1,7 @@
 //! Core shared functionality between sync and async implementations
 
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tracing::debug;
 use url::Url;
 
@@ -98,11 +98,11 @@ impl ClientCore {
     ) -> reqwest::blocking::RequestBuilder {
         match &self.credentials {
             Credentials::Anonymous => builder,
-            Credentials::Basic(ref user, ref pass) => {
+            Credentials::Basic(user, pass) => {
                 builder.basic_auth(user.to_owned(), Some(pass.to_owned()))
             }
-            Credentials::Bearer(ref token) => builder.bearer_auth(token.to_owned()),
-            Credentials::Cookie(ref jsessionid) => builder.header(
+            Credentials::Bearer(token) => builder.bearer_auth(token.to_owned()),
+            Credentials::Cookie(jsessionid) => builder.header(
                 reqwest::header::COOKIE,
                 format!("JSESSIONID={}", jsessionid),
             ),
@@ -116,11 +116,11 @@ impl ClientCore {
     ) -> reqwest::RequestBuilder {
         match &self.credentials {
             Credentials::Anonymous => builder,
-            Credentials::Basic(ref user, ref pass) => {
+            Credentials::Basic(user, pass) => {
                 builder.basic_auth(user.to_owned(), Some(pass.to_owned()))
             }
-            Credentials::Bearer(ref token) => builder.bearer_auth(token.to_owned()),
-            Credentials::Cookie(ref jsessionid) => builder.header(
+            Credentials::Bearer(token) => builder.bearer_auth(token.to_owned()),
+            Credentials::Cookie(jsessionid) => builder.header(
                 reqwest::header::COOKIE,
                 format!("JSESSIONID={}", jsessionid),
             ),

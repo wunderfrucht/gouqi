@@ -1,10 +1,6 @@
 #[cfg(feature = "async")]
 mod async_issues_tests {
-    extern crate futures;
-    extern crate gouqi;
-    extern crate mockito;
-    extern crate serde_json;
-    extern crate tokio;
+    // No extern crate needed in Rust 2024 edition
 
     use gouqi::r#async::Jira as AsyncJira;
     use gouqi::*;

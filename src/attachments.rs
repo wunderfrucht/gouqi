@@ -1,5 +1,6 @@
 //! Interfaces for accessing and managing attachments
 
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 // Ours

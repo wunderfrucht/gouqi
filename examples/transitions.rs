@@ -1,4 +1,4 @@
-extern crate gouqi;
+// No extern crate needed in Rust 2024 edition
 
 use gouqi::{Credentials, Jira, TransitionTriggerOptions};
 use std::env;

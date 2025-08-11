@@ -32,8 +32,6 @@ Basic usage requires a jira host, and a flavor of `jira::Credentials` for author
 The default API uses synchronous requests:
 
 ```rust,skeptic-template
-extern crate gouqi;
-
 use gouqi::{Credentials, Jira};
 use std::env;
 use tracing::error;
@@ -62,8 +60,6 @@ fn main() {
 With the `async` feature enabled, you can use the asynchronous API:
 
 ```rust
-extern crate gouqi;
-
 use futures::stream::StreamExt;
 use gouqi::{Credentials, SearchOptions};
 use std::env;
@@ -104,8 +100,7 @@ let async_jira = sync_jira.into_async();
 
 // Convert from async to sync
 let async_jira = gouqi::r#async::Jira::new(host, credentials)?;
-let sync_jira = crate::sync::Jira::from(&async_jira);
-```
+let sync_jira = gouqi::sync::Jira::from(&async_jira);
 ```
 
 ## Commiting a PR

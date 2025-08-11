@@ -1,6 +1,4 @@
-extern crate gouqi;
-extern crate mockito;
-extern crate serde_json;
+// No extern crate needed in Rust 2024 edition
 
 use gouqi::*;
 use serde::Serialize;

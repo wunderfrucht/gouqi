@@ -1,6 +1,7 @@
 //! Interfaces for accessing and managing resolutions
 
 // Third party
+use serde::Deserialize;
 use std::collections::BTreeMap;
 
 // Ours
