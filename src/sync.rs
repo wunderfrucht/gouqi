@@ -12,6 +12,7 @@ use crate::components::Components;
 use crate::core::ClientCore;
 use crate::issues::Issues;
 use crate::rep::Session;
+use crate::resolution::Resolution;
 use crate::search::Search;
 use crate::sprints::Sprints;
 use crate::transitions::Transitions;
@@ -167,6 +168,19 @@ impl Jira {
     #[tracing::instrument]
     pub fn versions(&self) -> Versions {
         Versions::new(self)
+    }
+
+    /// Returns the resolution interface for working with Jira issue resolutions
+    ///
+    /// Resolutions represent the outcome of an issue when it is closed.
+    /// This interface allows retrieving resolution information.
+    ///
+    /// # Returns
+    ///
+    /// A `Resolution` instance configured with this client
+    #[tracing::instrument]
+    pub fn resolution(&self) -> Resolution {
+        Resolution::new(self)
     }
 
     /// Retrieves the current user's session information from Jira

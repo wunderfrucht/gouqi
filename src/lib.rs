@@ -67,10 +67,11 @@ mod builder;
 pub mod components;
 mod errors;
 pub mod issues;
+pub mod relationships;
 mod rep;
 mod search;
 mod transitions;
-mod versions;
+pub mod versions;
 
 pub use crate::attachments::*;
 pub use crate::builder::*;
@@ -78,6 +79,7 @@ pub use crate::components::*;
 pub use crate::core::*; // Re-export all core types
 pub use crate::errors::*;
 pub use crate::issues::*;
+pub use crate::relationships::*;
 pub use crate::rep::*;
 #[cfg(feature = "async")]
 pub use crate::search::AsyncSearch;
