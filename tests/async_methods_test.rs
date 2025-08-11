@@ -35,7 +35,7 @@ mod async_methods_tests {
     #[tokio::test]
     async fn test_http_methods() -> Result<()> {
         // Use a local non-existent URL that will fail quickly instead of potentially timing out
-        let jira = Jira::new("http://localhost:99999", Credentials::Anonymous)?;
+        let jira = Jira::new("http://localhost:54321", Credentials::Anonymous)?;
 
         // Test method presence - these will error quickly due to connection refused,
         // but we're just checking that the methods exist and are accessible
