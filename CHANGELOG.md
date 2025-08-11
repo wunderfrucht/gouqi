@@ -2,11 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.11.0] - 2025-08-11
 
 ### 🚀 Features
 
-- *(async)* Added async boards interface with get, list, and stream methods
+- *(async)* Add boards into the async framework
+
+### 🐛 Bug Fixes
+
+- Resolve CI issues and warnings
+- Resolve doctest compilation errors
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump codecov/codecov-action from 5.4.0 to 5.4.3
 
 ## [0.10.0] - 2025-03-11
 
