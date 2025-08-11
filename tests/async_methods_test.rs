@@ -34,9 +34,10 @@ mod async_methods_tests {
 
     #[tokio::test]
     async fn test_http_methods() -> Result<()> {
-        let jira = Jira::new("http://example.com", Credentials::Anonymous)?;
+        // Use a local non-existent URL that will fail quickly instead of potentially timing out
+        let jira = Jira::new("http://localhost:99999", Credentials::Anonymous)?;
 
-        // Test method presence - these will error in a unit test with no server,
+        // Test method presence - these will error quickly due to connection refused,
         // but we're just checking that the methods exist and are accessible
         let get_result = jira.get::<serde_json::Value>("api", "/endpoint").await;
         assert!(get_result.is_err());
