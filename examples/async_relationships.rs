@@ -9,15 +9,15 @@
 //! Run with: cargo run --example async_relationships --features async
 
 #[cfg(feature = "async")]
-use gouqi::{Credentials, r#async::Jira};
+use gouqi::relationships::{GraphOptions, RelationshipGraph};
 #[cfg(feature = "async")]
-use gouqi::relationships::{RelationshipGraph, GraphOptions};
+use gouqi::{Credentials, r#async::Jira};
 #[cfg(feature = "async")]
 use std::env;
 #[cfg(feature = "async")]
-use tracing::{info, error};
-#[cfg(feature = "async")]
 use tokio::time::Instant;
+#[cfg(feature = "async")]
+use tracing::{error, info};
 
 #[cfg(feature = "async")]
 #[tokio::main]
@@ -27,16 +27,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Check for required environment variables
     let host = env::var("JIRA_HOST").map_err(|_| "Missing JIRA_HOST environment variable")?;
-    let issue_key = env::args()
-        .nth(1)
-        .unwrap_or_else(|| "DEMO-1".to_string());
-    
+    let issue_key = env::args().nth(1).unwrap_or_else(|| "DEMO-1".to_string());
+
     info!("Connecting to Jira at: {}", host);
     info!("Analyzing relationships for issue: {}", issue_key);
 
     // Create async Jira client
-    let credentials = if let (Ok(username), Ok(password)) = 
-        (env::var("JIRA_USERNAME"), env::var("JIRA_PASSWORD")) {
+    let credentials = if let (Ok(username), Ok(password)) =
+        (env::var("JIRA_USERNAME"), env::var("JIRA_PASSWORD"))
+    {
         Credentials::Basic(username, password)
     } else if let Ok(token) = env::var("JIRA_TOKEN") {
         Credentials::Bearer(token)
@@ -50,13 +49,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 1: Extract all relationships to depth 2 (async)
     info!("Extracting all relationships to depth 2 (async)...");
     let start = Instant::now();
-    
-    match jira.issues().get_relationship_graph(&issue_key, 2, None).await {
+
+    match jira
+        .issues()
+        .get_relationship_graph(&issue_key, 2, None)
+        .await
+    {
         Ok(graph) => {
             let duration = start.elapsed();
             print_graph_summary(&graph);
             info!("Async traversal completed in {:?}", duration);
-            
+
             // Export to JSON for AI agent processing
             let json = serde_json::to_string_pretty(&graph)?;
             println!("\n=== JSON Export (AI-friendly format) ===");
@@ -74,7 +77,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         bidirectional: true,
     };
 
-    match jira.issues().get_relationship_graph(&issue_key, 3, Some(blocking_options)).await {
+    match jira
+        .issues()
+        .get_relationship_graph(&issue_key, 3, Some(blocking_options))
+        .await
+    {
         Ok(blocking_graph) => {
             print_graph_summary(&blocking_graph);
             analyze_blocking_chain(&blocking_graph, &issue_key);
@@ -93,7 +100,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     let start = Instant::now();
-    match jira.issues().get_bulk_relationships(&related_issues, None).await {
+    match jira
+        .issues()
+        .get_bulk_relationships(&related_issues, None)
+        .await
+    {
         Ok(bulk_graph) => {
             let duration = start.elapsed();
             print_graph_summary(&bulk_graph);
@@ -115,74 +126,104 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(feature = "async")]
 async fn await_performance_comparison(
-    jira: &Jira, 
-    issue_keys: &[String]
+    jira: &Jira,
+    issue_keys: &[String],
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("\n=== Performance Comparison ===");
-    
+
     // Sequential approach
     let start = Instant::now();
     let mut sequential_graphs = Vec::new();
     for issue_key in issue_keys {
-        match jira.issues().get_relationship_graph(issue_key, 1, None).await {
+        match jira
+            .issues()
+            .get_relationship_graph(issue_key, 1, None)
+            .await
+        {
             Ok(graph) => sequential_graphs.push(graph),
             Err(_) => continue,
         }
     }
     let sequential_duration = start.elapsed();
-    
+
     // Concurrent approach (bulk)
     let start = Instant::now();
     let concurrent_result = jira.issues().get_bulk_relationships(issue_keys, None).await;
     let concurrent_duration = start.elapsed();
-    
-    println!("Sequential processing: {:?} ({} graphs)", sequential_duration, sequential_graphs.len());
+
+    println!(
+        "Sequential processing: {:?} ({} graphs)",
+        sequential_duration,
+        sequential_graphs.len()
+    );
     match concurrent_result {
         Ok(graph) => {
-            println!("Concurrent processing: {:?} ({} issues)", concurrent_duration, graph.metadata.issue_count);
-            
+            println!(
+                "Concurrent processing: {:?} ({} issues)",
+                concurrent_duration, graph.metadata.issue_count
+            );
+
             if concurrent_duration < sequential_duration {
-                let speedup = sequential_duration.as_millis() as f64 / concurrent_duration.as_millis() as f64;
+                let speedup =
+                    sequential_duration.as_millis() as f64 / concurrent_duration.as_millis() as f64;
                 println!("🚀 Concurrent approach is {:.2}x faster!", speedup);
             }
         }
         Err(e) => error!("Concurrent processing failed: {:?}", e),
     }
-    
+
     Ok(())
 }
 
 #[cfg(feature = "async")]
 async fn await_complex_analysis(
-    jira: &Jira, 
-    root_issue: &str
+    jira: &Jira,
+    root_issue: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("\n=== Complex Relationship Analysis ===");
-    
+
     // Get deep relationship graph
-    match jira.issues().get_relationship_graph(root_issue, 3, None).await {
+    match jira
+        .issues()
+        .get_relationship_graph(root_issue, 3, None)
+        .await
+    {
         Ok(graph) => {
             // Find all unique relationship types
             let mut relationship_types = std::collections::HashSet::new();
             for relationships in graph.issues.values() {
-                if !relationships.blocks.is_empty() { relationship_types.insert("blocks"); }
-                if !relationships.blocked_by.is_empty() { relationship_types.insert("blocked_by"); }
-                if !relationships.relates_to.is_empty() { relationship_types.insert("relates_to"); }
-                if !relationships.duplicates.is_empty() { relationship_types.insert("duplicates"); }
-                if relationships.parent.is_some() { relationship_types.insert("parent"); }
-                if !relationships.children.is_empty() { relationship_types.insert("children"); }
-                if relationships.epic.is_some() { relationship_types.insert("epic"); }
+                if !relationships.blocks.is_empty() {
+                    relationship_types.insert("blocks");
+                }
+                if !relationships.blocked_by.is_empty() {
+                    relationship_types.insert("blocked_by");
+                }
+                if !relationships.relates_to.is_empty() {
+                    relationship_types.insert("relates_to");
+                }
+                if !relationships.duplicates.is_empty() {
+                    relationship_types.insert("duplicates");
+                }
+                if relationships.parent.is_some() {
+                    relationship_types.insert("parent");
+                }
+                if !relationships.children.is_empty() {
+                    relationship_types.insert("children");
+                }
+                if relationships.epic.is_some() {
+                    relationship_types.insert("epic");
+                }
                 if let Some(_custom_type) = relationships.custom.keys().next() {
                     relationship_types.insert("custom");
                 }
             }
-            
+
             println!("Relationship types found: {:?}", relationship_types);
-            
+
             // Find longest path from root
             let mut max_distance = 0;
             let mut farthest_issue = root_issue.to_string();
-            
+
             for issue_key in graph.get_issue_keys() {
                 if let Some(path) = graph.get_path(root_issue, issue_key) {
                     if path.len() > max_distance {
@@ -191,36 +232,47 @@ async fn await_complex_analysis(
                     }
                 }
             }
-            
-            println!("Farthest connected issue: {} (distance: {})", farthest_issue, max_distance - 1);
-            
+
+            println!(
+                "Farthest connected issue: {} (distance: {})",
+                farthest_issue,
+                max_distance - 1
+            );
+
             // Find all cycles
             detect_cycles(&graph, root_issue);
-            
+
             // Generate summary statistics
-            let total_relationships: usize = graph.issues.values()
+            let total_relationships: usize = graph
+                .issues
+                .values()
                 .map(|rel| {
-                    rel.blocks.len() + rel.blocked_by.len() + rel.relates_to.len() + 
-                    rel.duplicates.len() + rel.children.len() +
-                    (if rel.parent.is_some() { 1 } else { 0 }) +
-                    (if rel.epic.is_some() { 1 } else { 0 }) +
-                    rel.custom.values().map(|v| v.len()).sum::<usize>()
+                    rel.blocks.len()
+                        + rel.blocked_by.len()
+                        + rel.relates_to.len()
+                        + rel.duplicates.len()
+                        + rel.children.len()
+                        + (if rel.parent.is_some() { 1 } else { 0 })
+                        + (if rel.epic.is_some() { 1 } else { 0 })
+                        + rel.custom.values().map(|v| v.len()).sum::<usize>()
                 })
                 .sum();
-                
-            println!("Graph density: {:.2} relationships per issue", 
-                total_relationships as f64 / graph.metadata.issue_count as f64);
+
+            println!(
+                "Graph density: {:.2} relationships per issue",
+                total_relationships as f64 / graph.metadata.issue_count as f64
+            );
         }
         Err(e) => error!("Failed to perform complex analysis: {:?}", e),
     }
-    
+
     Ok(())
 }
 
 #[cfg(feature = "async")]
 fn detect_cycles(graph: &RelationshipGraph, _root_issue: &str) {
     println!("\n--- Cycle Detection ---");
-    
+
     // Check for blocking cycles
     for issue_key in graph.get_issue_keys() {
         if let Some(path) = graph.get_path(issue_key, issue_key) {
@@ -229,15 +281,19 @@ fn detect_cycles(graph: &RelationshipGraph, _root_issue: &str) {
             }
         }
     }
-    
+
     // Check for parent-child cycles (these would be problematic)
-    fn has_parent_cycle(graph: &RelationshipGraph, issue: &str, visited: &mut std::collections::HashSet<String>) -> bool {
+    fn has_parent_cycle(
+        graph: &RelationshipGraph,
+        issue: &str,
+        visited: &mut std::collections::HashSet<String>,
+    ) -> bool {
         if visited.contains(issue) {
             return true;
         }
-        
+
         visited.insert(issue.to_string());
-        
+
         if let Some(relationships) = graph.get_relationships(issue) {
             if let Some(parent) = &relationships.parent {
                 if has_parent_cycle(graph, parent, visited) {
@@ -245,11 +301,11 @@ fn detect_cycles(graph: &RelationshipGraph, _root_issue: &str) {
                 }
             }
         }
-        
+
         visited.remove(issue);
         false
     }
-    
+
     for issue_key in graph.get_issue_keys() {
         let mut visited = std::collections::HashSet::new();
         if has_parent_cycle(graph, issue_key, &mut visited) {
@@ -274,14 +330,15 @@ fn print_graph_summary(graph: &RelationshipGraph) {
     // Print detailed relationships for first few issues
     let mut count = 0;
     for (issue_key, relationships) in &graph.issues {
-        if count >= 3 { // Limit output for readability
+        if count >= 3 {
+            // Limit output for readability
             println!("... and {} more issues", graph.metadata.issue_count - count);
             break;
         }
-        
+
         if !relationships.is_empty() {
             println!("\nIssue: {}", issue_key);
-            
+
             if !relationships.blocks.is_empty() {
                 println!("  Blocks: {}", relationships.blocks.join(", "));
             }
@@ -313,7 +370,7 @@ fn print_graph_summary(graph: &RelationshipGraph) {
 #[cfg(feature = "async")]
 fn analyze_blocking_chain(graph: &RelationshipGraph, root_issue: &str) {
     println!("\n=== Blocking Chain Analysis ===");
-    
+
     if let Some(relationships) = graph.get_relationships(root_issue) {
         if !relationships.blocks.is_empty() {
             println!("{} blocks:", root_issue);
@@ -321,7 +378,7 @@ fn analyze_blocking_chain(graph: &RelationshipGraph, root_issue: &str) {
                 print_blocking_chain(graph, blocked_issue, 1);
             }
         }
-        
+
         if !relationships.blocked_by.is_empty() {
             println!("{} is blocked by:", root_issue);
             for blocking_issue in &relationships.blocked_by {
@@ -335,7 +392,7 @@ fn analyze_blocking_chain(graph: &RelationshipGraph, root_issue: &str) {
 fn print_blocking_chain(graph: &RelationshipGraph, issue: &str, depth: usize) {
     let indent = "  ".repeat(depth);
     println!("{}├─ {}", indent, issue);
-    
+
     if let Some(relationships) = graph.get_relationships(issue) {
         for blocked_issue in &relationships.blocks {
             if depth < 5 {
@@ -349,7 +406,7 @@ fn print_blocking_chain(graph: &RelationshipGraph, issue: &str, depth: usize) {
 fn print_blocking_chain_reverse(graph: &RelationshipGraph, issue: &str, depth: usize) {
     let indent = "  ".repeat(depth);
     println!("{}├─ {}", indent, issue);
-    
+
     if let Some(relationships) = graph.get_relationships(issue) {
         for blocking_issue in &relationships.blocked_by {
             if depth < 5 {

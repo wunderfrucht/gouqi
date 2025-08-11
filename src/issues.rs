@@ -6,11 +6,11 @@ use std::collections::BTreeMap;
 use url::form_urlencoded;
 
 // Ours
+use crate::relationships::{GraphOptions, IssueRelationships, RelationshipGraph};
 use crate::sync::Jira;
 use crate::{
     Board, Changelog, Comment, Issue, IssueType, Priority, Project, Result, SearchOptions,
 };
-use crate::relationships::{RelationshipGraph, GraphOptions, IssueRelationships};
 
 #[cfg(feature = "async")]
 use futures::Future;
@@ -265,7 +265,7 @@ impl Issues {
 
         while let Some(current_issue) = queue.pop_front() {
             let current_depth = depth_map[&current_issue];
-            
+
             if visited.contains(&current_issue) {
                 continue;
             }
@@ -282,7 +282,7 @@ impl Issues {
 
             // Extract relationships from the issue
             let relationships = self.extract_relationships_from_issue(&issue, &options)?;
-            
+
             // Add to graph
             graph.add_issue(current_issue.clone(), relationships.clone());
 
@@ -313,7 +313,7 @@ impl Issues {
         if let Some(Ok(links)) = issue.links() {
             for link in links {
                 let link_type_name = &link.link_type.name;
-                
+
                 // Check if this link type should be included
                 if let Some(ref include_types) = options.include_types {
                     if !include_types.contains(link_type_name) {
@@ -402,9 +402,19 @@ impl Issues {
     fn extract_epic_link(&self, issue: &Issue) -> Option<String> {
         // This is a common custom field for Epic Link
         // You may need to adjust the field name based on your Jira configuration
-        issue.field::<String>("customfield_10014").and_then(|result| result.ok())
-            .or_else(|| issue.field::<String>("customfield_10008").and_then(|result| result.ok()))
-            .or_else(|| issue.field::<String>("Epic Link").and_then(|result| result.ok()))
+        issue
+            .field::<String>("customfield_10014")
+            .and_then(|result| result.ok())
+            .or_else(|| {
+                issue
+                    .field::<String>("customfield_10008")
+                    .and_then(|result| result.ok())
+            })
+            .or_else(|| {
+                issue
+                    .field::<String>("Epic Link")
+                    .and_then(|result| result.ok())
+            })
     }
 
     /// Get current relationships for multiple issues efficiently
@@ -665,7 +675,7 @@ impl AsyncIssues {
 
         while let Some(current_issue) = queue.pop_front() {
             let current_depth = depth_map[&current_issue];
-            
+
             if visited.contains(&current_issue) {
                 continue;
             }
@@ -682,7 +692,7 @@ impl AsyncIssues {
 
             // Extract relationships from the issue
             let relationships = self.extract_relationships_from_issue(&issue, &options)?;
-            
+
             // Add to graph
             graph.add_issue(current_issue.clone(), relationships.clone());
 
@@ -713,7 +723,7 @@ impl AsyncIssues {
         if let Some(Ok(links)) = issue.links() {
             for link in links {
                 let link_type_name = &link.link_type.name;
-                
+
                 // Check if this link type should be included
                 if let Some(ref include_types) = options.include_types {
                     if !include_types.contains(link_type_name) {
@@ -801,9 +811,19 @@ impl AsyncIssues {
     fn extract_epic_link(&self, issue: &Issue) -> Option<String> {
         // This is a common custom field for Epic Link
         // You may need to adjust the field name based on your Jira configuration
-        issue.field::<String>("customfield_10014").and_then(|result| result.ok())
-            .or_else(|| issue.field::<String>("customfield_10008").and_then(|result| result.ok()))
-            .or_else(|| issue.field::<String>("Epic Link").and_then(|result| result.ok()))
+        issue
+            .field::<String>("customfield_10014")
+            .and_then(|result| result.ok())
+            .or_else(|| {
+                issue
+                    .field::<String>("customfield_10008")
+                    .and_then(|result| result.ok())
+            })
+            .or_else(|| {
+                issue
+                    .field::<String>("Epic Link")
+                    .and_then(|result| result.ok())
+            })
     }
 
     /// Get current relationships for multiple issues efficiently (async version)

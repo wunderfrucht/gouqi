@@ -1,11 +1,11 @@
-use gouqi::{components::*, Credentials, Jira};
+use gouqi::{Credentials, Jira, components::*};
 use serde_json::json;
 
 #[test]
 fn test_components_creation() {
     let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
     let components = jira.components();
-    
+
     // Just testing that we can create the components interface
     assert!(std::mem::size_of_val(&components) > 0);
 }
@@ -13,7 +13,7 @@ fn test_components_creation() {
 #[test]
 fn test_component_get_success() {
     let mut server = mockito::Server::new();
-    
+
     let mock_component = json!({
         "id": "10000",
         "name": "Backend API",
@@ -57,7 +57,7 @@ fn test_component_get_success() {
 #[test]
 fn test_component_get_not_found() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("GET", "/rest/api/2/component/99999")
         .with_status(404)
@@ -74,7 +74,7 @@ fn test_component_get_not_found() {
 #[test]
 fn test_component_create_success() {
     let mut server = mockito::Server::new();
-    
+
     let mock_response = json!({
         "id": "10001",
         "name": "New Component",
@@ -96,14 +96,17 @@ fn test_component_create_success() {
         description: Some("A newly created component".to_string()),
         project: "TEST".to_string(),
     };
-    
+
     let result = jira.components().create(create_data);
 
     assert!(result.is_ok());
     let response = result.unwrap();
     assert_eq!(response.id, "10001");
     assert_eq!(response.name, "New Component");
-    assert_eq!(response.description, Some("A newly created component".to_string()));
+    assert_eq!(
+        response.description,
+        Some("A newly created component".to_string())
+    );
     assert_eq!(response.project, "TEST");
     assert!(response.url.contains("/component/10001"));
 }
@@ -111,7 +114,7 @@ fn test_component_create_success() {
 #[test]
 fn test_component_create_without_description() {
     let mut server = mockito::Server::new();
-    
+
     let mock_response = json!({
         "id": "10002",
         "name": "Simple Component",
@@ -133,7 +136,7 @@ fn test_component_create_without_description() {
         description: None,
         project: "TEST".to_string(),
     };
-    
+
     let result = jira.components().create(create_data);
 
     assert!(result.is_ok());
@@ -147,7 +150,7 @@ fn test_component_create_without_description() {
 #[test]
 fn test_component_create_invalid_project() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("POST", "/rest/api/2/component")
         .with_status(400)
@@ -161,7 +164,7 @@ fn test_component_create_invalid_project() {
         description: None,
         project: "INVALID".to_string(),
     };
-    
+
     let result = jira.components().create(create_data);
 
     assert!(result.is_err());
@@ -170,7 +173,7 @@ fn test_component_create_invalid_project() {
 #[test]
 fn test_component_edit_success() {
     let mut server = mockito::Server::new();
-    
+
     let mock_response = json!({
         "id": "10000",
         "name": "Updated Component",
@@ -192,21 +195,24 @@ fn test_component_edit_success() {
         description: Some("Updated description".to_string()),
         project: "TEST".to_string(),
     };
-    
+
     let result = jira.components().edit("10000", edit_data);
 
     assert!(result.is_ok());
     let response = result.unwrap();
     assert_eq!(response.id, "10000");
     assert_eq!(response.name, "Updated Component");
-    assert_eq!(response.description, Some("Updated description".to_string()));
+    assert_eq!(
+        response.description,
+        Some("Updated description".to_string())
+    );
     assert_eq!(response.project, "TEST");
 }
 
 #[test]
 fn test_component_edit_not_found() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("PUT", "/rest/api/2/component/99999")
         .with_status(404)
@@ -220,7 +226,7 @@ fn test_component_edit_not_found() {
         description: None,
         project: "TEST".to_string(),
     };
-    
+
     let result = jira.components().edit("99999", edit_data);
 
     assert!(result.is_err());
@@ -229,7 +235,7 @@ fn test_component_edit_not_found() {
 #[test]
 fn test_component_list_success() {
     let mut server = mockito::Server::new();
-    
+
     let mock_components = json!([
         {
             "id": "10000",
@@ -243,7 +249,7 @@ fn test_component_list_success() {
             "id": "10001",
             "name": "Frontend",
             "description": "Frontend components",
-            "project": "TEST", 
+            "project": "TEST",
             "projectId": 10001,
             "self": format!("{}/rest/api/2/component/10001", server.url())
         }
@@ -262,10 +268,10 @@ fn test_component_list_success() {
     assert!(result.is_ok());
     let components = result.unwrap();
     assert_eq!(components.len(), 2);
-    
+
     assert_eq!(components[0].id, "10000");
     assert_eq!(components[0].name, "Backend");
-    
+
     assert_eq!(components[1].id, "10001");
     assert_eq!(components[1].name, "Frontend");
 }
@@ -273,7 +279,7 @@ fn test_component_list_success() {
 #[test]
 fn test_component_list_empty() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("GET", "/rest/api/2/project/EMPTY/components")
         .with_status(200)
@@ -292,7 +298,7 @@ fn test_component_list_empty() {
 #[test]
 fn test_component_list_project_not_found() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("GET", "/rest/api/2/project/NOTFOUND/components")
         .with_status(404)
@@ -309,7 +315,7 @@ fn test_component_list_project_not_found() {
 #[test]
 fn test_component_list_by_project_id() {
     let mut server = mockito::Server::new();
-    
+
     let mock_components = json!([
         {
             "id": "10000",
@@ -349,11 +355,14 @@ fn test_component_create_component_struct() {
     assert!(json.contains("Test Component"));
     assert!(json.contains("Test description"));
     assert!(json.contains("TEST"));
-    
+
     // Test deserialization
     let deserialized: CreateComponent = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.name, "Test Component");
-    assert_eq!(deserialized.description, Some("Test description".to_string()));
+    assert_eq!(
+        deserialized.description,
+        Some("Test description".to_string())
+    );
     assert_eq!(deserialized.project, "TEST");
 }
 
@@ -370,7 +379,10 @@ fn test_create_component_response_deserialization() {
     let response: CreateComponentResponse = serde_json::from_value(json_data).unwrap();
     assert_eq!(response.id, "10000");
     assert_eq!(response.name, "Response Component");
-    assert_eq!(response.description, Some("Response description".to_string()));
+    assert_eq!(
+        response.description,
+        Some("Response description".to_string())
+    );
     assert_eq!(response.project, "RESP");
     assert_eq!(response.url, "http://localhost/rest/api/2/component/10000");
 }
@@ -378,7 +390,7 @@ fn test_create_component_response_deserialization() {
 #[test]
 fn test_components_interface_multiple_operations() {
     let mut server = mockito::Server::new();
-    
+
     // Mock get component
     let mock_component = json!({
         "id": "10000",
@@ -425,7 +437,7 @@ fn test_components_interface_multiple_operations() {
     // Test multiple operations with the same interface
     let existing_component = components_interface.get("10000").unwrap();
     assert_eq!(existing_component.id, "10000");
-    
+
     let create_data = CreateComponent {
         name: "New Component".to_string(),
         description: None,
@@ -433,7 +445,7 @@ fn test_components_interface_multiple_operations() {
     };
     let new_component = components_interface.create(create_data).unwrap();
     assert_eq!(new_component.id, "10001");
-    
+
     let all_components = components_interface.list("MULTI").unwrap();
     assert_eq!(all_components.len(), 2);
 }

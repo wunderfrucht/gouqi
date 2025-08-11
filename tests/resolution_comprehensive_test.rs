@@ -1,4 +1,4 @@
-use gouqi::{resolution::*, Credentials, Jira};
+use gouqi::{Credentials, Jira, resolution::*};
 use serde_json::json;
 use std::collections::BTreeMap;
 
@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 fn test_resolution_creation() {
     let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
     let resolution = jira.resolution();
-    
+
     // Just testing that we can create the resolution interface
     assert!(std::mem::size_of_val(&resolution) > 0);
 }
@@ -14,11 +14,11 @@ fn test_resolution_creation() {
 #[test]
 fn test_resolution_get_success() {
     let mut server = mockito::Server::new();
-    
+
     let mut properties = BTreeMap::new();
     properties.insert("color".to_string(), json!("green"));
     properties.insert("level".to_string(), json!(1));
-    
+
     let mock_resolution = json!({
         "id": "1",
         "title": "Fixed",
@@ -51,7 +51,7 @@ fn test_resolution_get_success() {
 #[test]
 fn test_resolution_get_not_found() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("GET", "/rest/api/2/resolution/999")
         .with_status(404)
@@ -68,7 +68,7 @@ fn test_resolution_get_not_found() {
 #[test]
 fn test_resolution_get_string_id() {
     let mut server = mockito::Server::new();
-    
+
     let mock_resolution = json!({
         "id": "FIXED",
         "title": "Fixed",
@@ -99,7 +99,7 @@ fn test_resolution_get_string_id() {
 #[test]
 fn test_resolution_get_with_numeric_id_conversion() {
     let mut server = mockito::Server::new();
-    
+
     let mock_resolution = json!({
         "id": "42",
         "title": "Won't Fix",
@@ -118,7 +118,7 @@ fn test_resolution_get_with_numeric_id_conversion() {
         .create();
 
     let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
-    
+
     // Test that Into<String> works for numeric IDs
     let result = jira.resolution().get(42.to_string());
 
@@ -126,7 +126,10 @@ fn test_resolution_get_with_numeric_id_conversion() {
     let resolution = result.unwrap();
     assert_eq!(resolution.id, "42");
     assert_eq!(resolution.title, "Won't Fix");
-    assert_eq!(resolution.properties.get("reason").unwrap(), &json!("out_of_scope"));
+    assert_eq!(
+        resolution.properties.get("reason").unwrap(),
+        &json!("out_of_scope")
+    );
 }
 
 #[test]
@@ -174,25 +177,25 @@ fn test_resolution_deserialize_with_complex_properties() {
     assert_eq!(resolution.resolution_type, "custom_resolution");
     assert!(resolution.additional_properties);
     assert_eq!(resolution.properties.len(), 5);
-    
+
     // Check nested object
     let nested = resolution.properties.get("nested_object").unwrap();
     assert!(nested.is_object());
-    
+
     // Check array
     let array = resolution.properties.get("array_value").unwrap();
     assert!(array.is_array());
     assert_eq!(array.as_array().unwrap().len(), 3);
-    
+
     // Check boolean
     let boolean = resolution.properties.get("boolean_value").unwrap();
     assert!(boolean.is_boolean());
     assert!(boolean.as_bool().unwrap());
-    
+
     // Check null
     let null_val = resolution.properties.get("null_value").unwrap();
     assert!(null_val.is_null());
-    
+
     // Check string
     let string_val = resolution.properties.get("string_value").unwrap();
     assert!(string_val.is_string());
@@ -202,7 +205,7 @@ fn test_resolution_deserialize_with_complex_properties() {
 #[test]
 fn test_resolution_interface_multiple_calls() {
     let mut server = mockito::Server::new();
-    
+
     // Mock first resolution
     let mock_resolution1 = json!({
         "id": "1",
@@ -242,7 +245,7 @@ fn test_resolution_interface_multiple_calls() {
     let resolution1 = resolution_interface.get("1").unwrap();
     assert_eq!(resolution1.id, "1");
     assert_eq!(resolution1.title, "Fixed");
-    
+
     let resolution2 = resolution_interface.get("2").unwrap();
     assert_eq!(resolution2.id, "2");
     assert_eq!(resolution2.title, "Won't Fix");
@@ -251,7 +254,7 @@ fn test_resolution_interface_multiple_calls() {
 #[test]
 fn test_resolution_server_error() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("GET", "/rest/api/2/resolution/error")
         .with_status(500)
@@ -268,7 +271,7 @@ fn test_resolution_server_error() {
 #[test]
 fn test_resolution_unauthorized() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("GET", "/rest/api/2/resolution/restricted")
         .with_status(401)

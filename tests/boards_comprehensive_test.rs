@@ -8,7 +8,7 @@
 fn test_board_creation() {
     let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
     let boards = jira.boards();
-    
+
     // Just testing that we can create the boards interface
     assert!(std::mem::size_of_val(&boards) > 0);
 }
@@ -17,7 +17,7 @@ fn test_board_creation() {
 #[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_get_success() {
     let mut server = mockito::Server::new();
-    
+
     let mock_board = json!({
         "self": format!("{}/rest/agile/1.0/board/1", server.url()),
         "id": 1,
@@ -48,7 +48,7 @@ fn test_board_get_success() {
     assert_eq!(board.name, "Test Board");
     assert_eq!(board.type_name, "scrum");
     assert!(board.location.is_some());
-    
+
     let location = board.location.unwrap();
     assert_eq!(location.project_id, Some(10000));
     assert_eq!(location.display_name, Some("Test Project".to_string()));
@@ -61,7 +61,7 @@ fn test_board_get_success() {
 #[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_get_not_found() {
     let mut server = mockito::Server::new();
-    
+
     server
         .mock("GET", "/rest/agile/1.0/board/999")
         .with_status(404)
@@ -79,7 +79,7 @@ fn test_board_get_not_found() {
 #[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_list_success() {
     let mut server = mockito::Server::new();
-    
+
     let mock_boards = json!({
         "maxResults": 50,
         "startAt": 0,
@@ -117,11 +117,11 @@ fn test_board_list_success() {
     assert_eq!(board_results.start_at, 0);
     assert!(board_results.is_last);
     assert_eq!(board_results.values.len(), 2);
-    
+
     assert_eq!(board_results.values[0].id, 1);
     assert_eq!(board_results.values[0].name, "Scrum Board");
     assert_eq!(board_results.values[0].type_name, "scrum");
-    
+
     assert_eq!(board_results.values[1].id, 2);
     assert_eq!(board_results.values[1].name, "Kanban Board");
     assert_eq!(board_results.values[1].type_name, "kanban");
@@ -131,7 +131,7 @@ fn test_board_list_success() {
 #[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_list_with_search_options() {
     let mut server = mockito::Server::new();
-    
+
     let mock_boards = json!({
         "maxResults": 10,
         "startAt": 5,
@@ -159,7 +159,7 @@ fn test_board_list_with_search_options() {
         .max_results(10)
         .start_at(5)
         .build();
-    
+
     let result = jira.boards().list(&options);
 
     assert!(result.is_ok());
@@ -174,7 +174,7 @@ fn test_board_list_with_search_options() {
 #[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_iterator_single_page() {
     let mut server = mockito::Server::new();
-    
+
     let mock_boards = json!({
         "maxResults": 50,
         "startAt": 0,
@@ -227,7 +227,7 @@ fn test_board_iterator_single_page() {
 #[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_iterator_multiple_pages() {
     let mut server = mockito::Server::new();
-    
+
     // First page
     let first_page = json!({
         "maxResults": 1,
@@ -277,7 +277,7 @@ fn test_board_iterator_multiple_pages() {
         .as_builder()
         .max_results(1)
         .build();
-    
+
     let mut iter = jira.boards().iter(&options).unwrap();
 
     // First board from first page
@@ -300,7 +300,7 @@ fn test_board_iterator_multiple_pages() {
 #[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_iterator_error_handling() {
     let mut server = mockito::Server::new();
-    
+
     // First successful request
     let first_page = json!({
         "maxResults": 1,
@@ -336,7 +336,7 @@ fn test_board_iterator_error_handling() {
         .as_builder()
         .max_results(1)
         .build();
-    
+
     let mut iter = jira.boards().iter(&options).unwrap();
 
     // First board should work
@@ -384,7 +384,7 @@ fn test_location_deserialize_partial() {
 
     let board: Board = serde_json::from_value(json_data).unwrap();
     assert!(board.location.is_some());
-    
+
     let location = board.location.unwrap();
     assert_eq!(location.project_id, Some(12345));
     assert_eq!(location.project_key, Some("PROJ".to_string()));
