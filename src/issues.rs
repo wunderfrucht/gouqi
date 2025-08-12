@@ -32,6 +32,7 @@ pub struct Assignee {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+#[non_exhaustive]
 pub struct Component {
     pub id: String,
     pub name: String,
@@ -55,6 +56,26 @@ pub struct Component {
     pub project_id: Option<u64>,
     #[serde(rename = "self", skip_serializing_if = "Option::is_none")]
     pub self_link: Option<String>,
+}
+
+impl Component {
+    /// Create a new Component with basic fields
+    pub fn new(id: impl Into<String>, name: impl Into<String>) -> Self {
+        Component {
+            id: id.into(),
+            name: name.into(),
+            description: None,
+            lead: None,
+            assignee_type: None,
+            assignee: None,
+            real_assignee_type: None,
+            real_assignee: None,
+            is_assignee_type_valid: None,
+            project: None,
+            project_id: None,
+            self_link: None,
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug)]

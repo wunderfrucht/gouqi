@@ -11,6 +11,16 @@ fn create_test_board() -> Board {
     }
 }
 
+fn create_test_board_with_id(id: u64) -> Board {
+    Board {
+        self_link: format!("http://localhost/rest/agile/latest/board/{}", id),
+        id,
+        name: format!("Test Board {}", id),
+        type_name: "scrum".to_string(),
+        location: None,
+    }
+}
+
 #[test]
 fn test_sprints_creation() {
     let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
@@ -158,14 +168,14 @@ fn test_sprint_list_success() {
                 "self": format!("{}/rest/agile/latest/sprint/1", server.url()),
                 "name": "Sprint 1",
                 "state": "active",
-                "originBoardId": 1
+                "originBoardId": 999
             },
             {
                 "id": 2,
                 "self": format!("{}/rest/agile/latest/sprint/2", server.url()),
                 "name": "Sprint 2",
                 "state": "closed",
-                "originBoardId": 1,
+                "originBoardId": 999,
                 "startDate": "2023-01-01T00:00:00.000Z",
                 "endDate": "2023-01-14T23:59:59.999Z",
                 "completeDate": "2023-01-14T18:00:00.000Z"
@@ -218,7 +228,7 @@ fn test_sprint_list_with_search_options() {
                 "self": format!("{}/rest/agile/latest/sprint/3", server.url()),
                 "name": "Sprint 3",
                 "state": "future",
-                "originBoardId": 1
+                "originBoardId": 10
             }
         ]
     });
@@ -226,7 +236,7 @@ fn test_sprint_list_with_search_options() {
     server
         .mock(
             "GET",
-            "/rest/agile/latest/board/1/sprint?maxResults=10&startAt=5",
+            "/rest/agile/latest/board/10/sprint?maxResults=10&startAt=5",
         )
         .with_status(200)
         .with_header("content-type", "application/json")
@@ -234,7 +244,7 @@ fn test_sprint_list_with_search_options() {
         .create();
 
     let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
-    let board = create_test_board();
+    let board = create_test_board_with_id(10);
     let options = SearchOptions::default()
         .as_builder()
         .max_results(10)
@@ -266,14 +276,14 @@ fn test_sprint_iterator_single_page() {
                 "self": format!("{}/rest/agile/latest/sprint/1", server.url()),
                 "name": "Sprint 1",
                 "state": "active",
-                "originBoardId": 1
+                "originBoardId": 999
             },
             {
                 "id": 2,
                 "self": format!("{}/rest/agile/latest/sprint/2", server.url()),
                 "name": "Sprint 2",
                 "state": "closed",
-                "originBoardId": 1
+                "originBoardId": 999
             }
         ]
     });
@@ -322,7 +332,7 @@ fn test_sprint_iterator_multiple_pages() {
                 "self": format!("{}/rest/agile/latest/sprint/1", server.url()),
                 "name": "Sprint 1",
                 "state": "active",
-                "originBoardId": 1
+                "originBoardId": 999
             }
         ]
     });
@@ -338,13 +348,13 @@ fn test_sprint_iterator_multiple_pages() {
                 "self": format!("{}/rest/agile/latest/sprint/2", server.url()),
                 "name": "Sprint 2",
                 "state": "closed",
-                "originBoardId": 1
+                "originBoardId": 999
             }
         ]
     });
 
     server
-        .mock("GET", "/rest/agile/latest/board/1/sprint?maxResults=1")
+        .mock("GET", "/rest/agile/latest/board/20/sprint?maxResults=1")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(first_page.to_string())
@@ -353,7 +363,7 @@ fn test_sprint_iterator_multiple_pages() {
     server
         .mock(
             "GET",
-            "/rest/agile/latest/board/1/sprint?maxResults=1&startAt=1",
+            "/rest/agile/latest/board/20/sprint?maxResults=1&startAt=1",
         )
         .with_status(200)
         .with_header("content-type", "application/json")
@@ -361,7 +371,7 @@ fn test_sprint_iterator_multiple_pages() {
         .create();
 
     let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
-    let board = create_test_board();
+    let board = create_test_board_with_id(20);
     let options = SearchOptions::default().as_builder().max_results(1).build();
 
     let mut iter = jira.sprints().iter(&board, &options).unwrap();
@@ -397,13 +407,13 @@ fn test_sprint_iterator_error_handling() {
                 "self": format!("{}/rest/agile/latest/sprint/1", server.url()),
                 "name": "Sprint 1",
                 "state": "active",
-                "originBoardId": 1
+                "originBoardId": 999
             }
         ]
     });
 
     server
-        .mock("GET", "/rest/agile/latest/board/1/sprint?maxResults=1")
+        .mock("GET", "/rest/agile/latest/board/30/sprint?maxResults=1")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(first_page.to_string())
@@ -413,7 +423,7 @@ fn test_sprint_iterator_error_handling() {
     server
         .mock(
             "GET",
-            "/rest/agile/latest/board/1/sprint?maxResults=1&startAt=1",
+            "/rest/agile/latest/board/30/sprint?maxResults=1&startAt=1",
         )
         .with_status(500)
         .with_header("content-type", "application/json")
@@ -421,7 +431,7 @@ fn test_sprint_iterator_error_handling() {
         .create();
 
     let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
-    let board = create_test_board();
+    let board = create_test_board_with_id(30);
     let options = SearchOptions::default().as_builder().max_results(1).build();
 
     let mut iter = jira.sprints().iter(&board, &options).unwrap();

@@ -102,20 +102,7 @@ mod async_issues_tests {
         let assignee = Assignee {
             name: "user".to_string(),
         };
-        let component = Component {
-            id: "1".to_string(),
-            name: "Component".to_string(),
-            description: None,
-            lead: None,
-            assignee_type: None,
-            assignee: None,
-            real_assignee_type: None,
-            real_assignee: None,
-            is_assignee_type_valid: None,
-            project: None,
-            project_id: None,
-            self_link: None,
-        };
+        let component = Component::new("1", "Component");
 
         let issue_type = IssueType {
             id: "1".to_string(),
@@ -473,20 +460,7 @@ mod async_issues_tests {
         let assignee = Assignee {
             name: "user".to_string(),
         };
-        let component = Component {
-            id: "1".to_string(),
-            name: "Component".to_string(),
-            description: None,
-            lead: None,
-            assignee_type: None,
-            assignee: None,
-            real_assignee_type: None,
-            real_assignee: None,
-            is_assignee_type_valid: None,
-            project: None,
-            project_id: None,
-            self_link: None,
-        };
+        let component = Component::new("1", "Component");
 
         let issue_type = IssueType {
             id: "1".to_string(),
