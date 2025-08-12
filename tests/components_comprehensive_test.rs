@@ -384,7 +384,10 @@ fn test_create_component_response_deserialization() {
         Some("Response description".to_string())
     );
     assert_eq!(response.project, "RESP");
-    assert_eq!(response.url, "http://localhost/rest/api/latest/component/10000");
+    assert_eq!(
+        response.url,
+        "http://localhost/rest/api/latest/component/10000"
+    );
 }
 
 #[test]
