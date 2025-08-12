@@ -46,7 +46,7 @@ fn test_transitions_list_success() {
     server
         .mock(
             "GET",
-            "/rest/api/2/issue/TEST-123/transitions?expand=transitions.fields",
+            "/rest/api/latest/issue/TEST-123/transitions?expand=transitions.fields",
         )
         .with_status(200)
         .with_header("content-type", "application/json")
@@ -87,7 +87,7 @@ fn test_transitions_list_empty() {
     server
         .mock(
             "GET",
-            "/rest/api/2/issue/EMPTY-1/transitions?expand=transitions.fields",
+            "/rest/api/latest/issue/EMPTY-1/transitions?expand=transitions.fields",
         )
         .with_status(200)
         .with_header("content-type", "application/json")
@@ -109,7 +109,7 @@ fn test_transitions_list_issue_not_found() {
     server
         .mock(
             "GET",
-            "/rest/api/2/issue/NOTFOUND-1/transitions?expand=transitions.fields",
+            "/rest/api/latest/issue/NOTFOUND-1/transitions?expand=transitions.fields",
         )
         .with_status(404)
         .with_header("content-type", "application/json")
@@ -128,7 +128,7 @@ fn test_transition_trigger_success() {
 
     // Transition API typically returns empty body on success
     server
-        .mock("POST", "/rest/api/2/issue/TEST-123/transitions")
+        .mock("POST", "/rest/api/latest/issue/TEST-123/transitions")
         .with_status(204)
         .with_header("content-type", "application/json")
         .with_body("")
@@ -147,7 +147,7 @@ fn test_transition_trigger_with_builder() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("POST", "/rest/api/2/issue/TEST-456/transitions")
+        .mock("POST", "/rest/api/latest/issue/TEST-456/transitions")
         .with_status(204)
         .with_header("content-type", "application/json")
         .with_body("")
@@ -168,7 +168,7 @@ fn test_transition_trigger_with_custom_fields() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("POST", "/rest/api/2/issue/TEST-789/transitions")
+        .mock("POST", "/rest/api/latest/issue/TEST-789/transitions")
         .with_status(204)
         .with_header("content-type", "application/json")
         .with_body("")
@@ -193,10 +193,10 @@ fn test_transition_trigger_invalid_transition() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("POST", "/rest/api/2/issue/TEST-123/transitions")
+        .mock("POST", "/rest/api/latest/issue/TEST-123/transitions")
         .with_status(400)
         .with_header("content-type", "application/json")
-        .with_body(json!({"errorMessages": ["Invalid transition"]}).to_string())
+        .with_body(json!({"errorMessages": ["Invalid transition"], "errors": {}}).to_string())
         .create();
 
     let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
@@ -212,10 +212,10 @@ fn test_transition_trigger_unauthorized() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("POST", "/rest/api/2/issue/SECRET-1/transitions")
+        .mock("POST", "/rest/api/latest/issue/SECRET-1/transitions")
         .with_status(401)
         .with_header("content-type", "application/json")
-        .with_body(json!({"errorMessages": ["Unauthorized"]}).to_string())
+        .with_body(json!({"errorMessages": ["Unauthorized"], "errors": {}}).to_string())
         .create();
 
     let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
@@ -232,7 +232,7 @@ fn test_transition_trigger_handles_serde_error() {
 
     // Return malformed JSON that would cause serde error
     server
-        .mock("POST", "/rest/api/2/issue/TEST-SERDE/transitions")
+        .mock("POST", "/rest/api/latest/issue/TEST-SERDE/transitions")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body("invalid json")
@@ -418,7 +418,7 @@ fn test_transitions_interface_multiple_operations() {
     server
         .mock(
             "GET",
-            "/rest/api/2/issue/MULTI-1/transitions?expand=transitions.fields",
+            "/rest/api/latest/issue/MULTI-1/transitions?expand=transitions.fields",
         )
         .with_status(200)
         .with_header("content-type", "application/json")
@@ -427,7 +427,7 @@ fn test_transitions_interface_multiple_operations() {
 
     // Mock trigger transition
     server
-        .mock("POST", "/rest/api/2/issue/MULTI-1/transitions")
+        .mock("POST", "/rest/api/latest/issue/MULTI-1/transitions")
         .with_status(204)
         .with_header("content-type", "application/json")
         .with_body("")

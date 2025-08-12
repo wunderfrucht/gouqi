@@ -21,7 +21,7 @@ fn test_project_versions_success() {
             "archived": false,
             "released": true,
             "projectId": 10001,
-            "self": format!("{}/rest/api/2/version/10000", server.url())
+            "self": format!("{}/rest/api/latest/version/10000", server.url())
         },
         {
             "id": "10001",
@@ -29,12 +29,12 @@ fn test_project_versions_success() {
             "archived": false,
             "released": false,
             "projectId": 10001,
-            "self": format!("{}/rest/api/2/version/10001", server.url())
+            "self": format!("{}/rest/api/latest/version/10001", server.url())
         }
     ]);
 
     server
-        .mock("GET", "/rest/api/2/project/TEST/versions")
+        .mock("GET", "/rest/api/latest/project/TEST/versions")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_versions.to_string())
@@ -65,7 +65,7 @@ fn test_project_versions_empty() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("GET", "/rest/api/2/project/EMPTY/versions")
+        .mock("GET", "/rest/api/latest/project/EMPTY/versions")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body("[]")
@@ -84,7 +84,7 @@ fn test_project_versions_not_found() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("GET", "/rest/api/2/project/NOTFOUND/versions")
+        .mock("GET", "/rest/api/latest/project/NOTFOUND/versions")
         .with_status(404)
         .with_header("content-type", "application/json")
         .with_body(json!({"errorMessages": ["Project not found"]}).to_string())
@@ -106,11 +106,11 @@ fn test_create_version_success() {
         "archived": false,
         "released": false,
         "projectId": 10001,
-        "self": format!("{}/rest/api/2/version/10002", server.url())
+        "self": format!("{}/rest/api/latest/version/10002", server.url())
     });
 
     server
-        .mock("POST", "/rest/api/2/version")
+        .mock("POST", "/rest/api/latest/version")
         .with_status(201)
         .with_header("content-type", "application/json")
         .with_body(mock_version.to_string())
@@ -139,11 +139,11 @@ fn test_create_version_with_string() {
         "archived": false,
         "released": false,
         "projectId": 10001,
-        "self": format!("{}/rest/api/2/version/10003", server.url())
+        "self": format!("{}/rest/api/latest/version/10003", server.url())
     });
 
     server
-        .mock("POST", "/rest/api/2/version")
+        .mock("POST", "/rest/api/latest/version")
         .with_status(201)
         .with_header("content-type", "application/json")
         .with_body(mock_version.to_string())
@@ -163,7 +163,7 @@ fn test_create_version_invalid_project() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("POST", "/rest/api/2/version")
+        .mock("POST", "/rest/api/latest/version")
         .with_status(400)
         .with_header("content-type", "application/json")
         .with_body(json!({"errorMessages": ["Invalid project ID"]}).to_string())
@@ -185,11 +185,11 @@ fn test_move_after_success() {
         "archived": false,
         "released": false,
         "projectId": 10001,
-        "self": format!("{}/rest/api/2/version/10000", server.url())
+        "self": format!("{}/rest/api/latest/version/10000", server.url())
     });
 
     server
-        .mock("POST", "/rest/api/2/version/10000/move")
+        .mock("POST", "/rest/api/latest/version/10000/move")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_version.to_string())
@@ -223,11 +223,11 @@ fn test_move_after_with_string() {
         "archived": false,
         "released": false,
         "projectId": 10001,
-        "self": format!("{}/rest/api/2/version/10000", server.url())
+        "self": format!("{}/rest/api/latest/version/10000", server.url())
     });
 
     server
-        .mock("POST", "/rest/api/2/version/10000/move")
+        .mock("POST", "/rest/api/latest/version/10000/move")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_version.to_string())
@@ -254,7 +254,7 @@ fn test_move_after_version_not_found() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("POST", "/rest/api/2/version/99999/move")
+        .mock("POST", "/rest/api/latest/version/99999/move")
         .with_status(404)
         .with_header("content-type", "application/json")
         .with_body(json!({"errorMessages": ["Version not found"]}).to_string())
@@ -285,11 +285,11 @@ fn test_release_version_success() {
         "archived": false,
         "released": true,
         "projectId": 10001,
-        "self": format!("{}/rest/api/2/version/10000", server.url())
+        "self": format!("{}/rest/api/latest/version/10000", server.url())
     });
 
     server
-        .mock("PUT", "/rest/api/2/version/10000")
+        .mock("PUT", "/rest/api/latest/version/10000")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_version.to_string())
@@ -320,11 +320,11 @@ fn test_release_version_with_move_unfixed_issues() {
         "archived": false,
         "released": true,
         "projectId": 10001,
-        "self": format!("{}/rest/api/2/version/10000", server.url())
+        "self": format!("{}/rest/api/latest/version/10000", server.url())
     });
 
     server
-        .mock("PUT", "/rest/api/2/version/10000")
+        .mock("PUT", "/rest/api/latest/version/10000")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_version.to_string())
@@ -378,7 +378,7 @@ fn test_release_version_server_error() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("PUT", "/rest/api/2/version/10000")
+        .mock("PUT", "/rest/api/latest/version/10000")
         .with_status(500)
         .with_header("content-type", "application/json")
         .with_body(json!({"errorMessages": ["Internal server error"]}).to_string())
@@ -408,7 +408,7 @@ fn test_version_serialization_deserialization() {
         "archived": true,
         "released": false,
         "projectId": 54321,
-        "self": "http://test.com/rest/api/2/version/12345"
+        "self": "http://test.com/rest/api/latest/version/12345"
     });
 
     let version: gouqi::Version = serde_json::from_value(json_data.clone()).unwrap();
@@ -419,7 +419,7 @@ fn test_version_serialization_deserialization() {
     assert_eq!(version.project_id, 54321);
     assert_eq!(
         version.self_link,
-        "http://test.com/rest/api/2/version/12345"
+        "http://test.com/rest/api/latest/version/12345"
     );
 
     // Test serialization back to JSON
@@ -431,7 +431,7 @@ fn test_version_serialization_deserialization() {
     assert_eq!(serialized["projectId"], 54321);
     assert_eq!(
         serialized["self"],
-        "http://test.com/rest/api/2/version/12345"
+        "http://test.com/rest/api/latest/version/12345"
     );
 }
 
@@ -505,12 +505,12 @@ fn test_versions_interface_multiple_operations() {
             "archived": false,
             "released": true,
             "projectId": 10001,
-            "self": format!("{}/rest/api/2/version/10000", server.url())
+            "self": format!("{}/rest/api/latest/version/10000", server.url())
         }
     ]);
 
     server
-        .mock("GET", "/rest/api/2/project/MULTI/versions")
+        .mock("GET", "/rest/api/latest/project/MULTI/versions")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_project_versions.to_string())
@@ -523,11 +523,11 @@ fn test_versions_interface_multiple_operations() {
         "archived": false,
         "released": false,
         "projectId": 10001,
-        "self": format!("{}/rest/api/2/version/10002", server.url())
+        "self": format!("{}/rest/api/latest/version/10002", server.url())
     });
 
     server
-        .mock("POST", "/rest/api/2/version")
+        .mock("POST", "/rest/api/latest/version")
         .with_status(201)
         .with_header("content-type", "application/json")
         .with_body(mock_created_version.to_string())

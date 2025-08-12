@@ -31,9 +31,30 @@ pub struct Assignee {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Component {
     pub id: String,
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lead: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assignee_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assignee: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub real_assignee_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub real_assignee: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_assignee_type_valid: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<u64>,
+    #[serde(rename = "self", skip_serializing_if = "Option::is_none")]
+    pub self_link: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
