@@ -3,7 +3,7 @@ use serde_json::json;
 
 fn create_test_board() -> Board {
     Board {
-        self_link: "http://localhost/rest/agile/1.0/board/1".to_string(),
+        self_link: "http://localhost/rest/agile/latest/board/1".to_string(),
         id: 1,
         name: "Test Board".to_string(),
         type_name: "scrum".to_string(),
@@ -26,7 +26,7 @@ fn test_sprint_create_success() {
 
     let mock_sprint = json!({
         "id": 1,
-        "self": format!("{}/rest/agile/1.0/sprint/1", server.url()),
+        "self": format!("{}/rest/agile/latest/sprint/1", server.url()),
         "name": "New Sprint",
         "state": "active",
         "originBoardId": 1,
@@ -35,7 +35,7 @@ fn test_sprint_create_success() {
     });
 
     server
-        .mock("POST", "/rest/agile/1.0/sprint")
+        .mock("POST", "/rest/agile/latest/sprint")
         .with_status(201)
         .with_header("content-type", "application/json")
         .with_body(mock_sprint.to_string())
@@ -61,7 +61,7 @@ fn test_sprint_get_success() {
 
     let mock_sprint = json!({
         "id": 42,
-        "self": format!("{}/rest/agile/1.0/sprint/42", server.url()),
+        "self": format!("{}/rest/agile/latest/sprint/42", server.url()),
         "name": "Test Sprint",
         "state": "closed",
         "originBoardId": 1,
@@ -71,7 +71,7 @@ fn test_sprint_get_success() {
     });
 
     server
-        .mock("GET", "/rest/agile/1.0/sprint/42")
+        .mock("GET", "/rest/agile/latest/sprint/42")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_sprint.to_string())
@@ -96,7 +96,7 @@ fn test_sprint_get_not_found() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("GET", "/rest/agile/1.0/sprint/999")
+        .mock("GET", "/rest/agile/latest/sprint/999")
         .with_status(404)
         .with_header("content-type", "application/json")
         .with_body(json!({"errorMessages": ["Sprint does not exist"]}).to_string())
@@ -113,7 +113,7 @@ fn test_sprint_move_issues_success() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("POST", "/rest/agile/1.0/sprint/1/issue")
+        .mock("POST", "/rest/agile/latest/sprint/1/issue")
         .with_status(204)
         .with_header("content-type", "application/json")
         .with_body("")
@@ -131,10 +131,10 @@ fn test_sprint_move_issues_failure() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("POST", "/rest/agile/1.0/sprint/1/issue")
+        .mock("POST", "/rest/agile/latest/sprint/1/issue")
         .with_status(400)
         .with_header("content-type", "application/json")
-        .with_body(json!({"errorMessages": ["Invalid issue keys"]}).to_string())
+        .with_body(json!({"errorMessages": ["Invalid issue keys"], "errors": {}}).to_string())
         .create();
 
     let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
@@ -155,14 +155,14 @@ fn test_sprint_list_success() {
         "values": [
             {
                 "id": 1,
-                "self": format!("{}/rest/agile/1.0/sprint/1", server.url()),
+                "self": format!("{}/rest/agile/latest/sprint/1", server.url()),
                 "name": "Sprint 1",
                 "state": "active",
                 "originBoardId": 1
             },
             {
                 "id": 2,
-                "self": format!("{}/rest/agile/1.0/sprint/2", server.url()),
+                "self": format!("{}/rest/agile/latest/sprint/2", server.url()),
                 "name": "Sprint 2",
                 "state": "closed",
                 "originBoardId": 1,
@@ -174,7 +174,7 @@ fn test_sprint_list_success() {
     });
 
     server
-        .mock("GET", "/rest/agile/1.0/board/1/sprint?")
+        .mock("GET", "/rest/agile/latest/board/1/sprint?")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_sprints.to_string())
@@ -215,7 +215,7 @@ fn test_sprint_list_with_search_options() {
         "values": [
             {
                 "id": 3,
-                "self": format!("{}/rest/agile/1.0/sprint/3", server.url()),
+                "self": format!("{}/rest/agile/latest/sprint/3", server.url()),
                 "name": "Sprint 3",
                 "state": "future",
                 "originBoardId": 1
@@ -226,7 +226,7 @@ fn test_sprint_list_with_search_options() {
     server
         .mock(
             "GET",
-            "/rest/agile/1.0/board/1/sprint?maxResults=10&startAt=5",
+            "/rest/agile/latest/board/1/sprint?maxResults=10&startAt=5",
         )
         .with_status(200)
         .with_header("content-type", "application/json")
@@ -263,14 +263,14 @@ fn test_sprint_iterator_single_page() {
         "values": [
             {
                 "id": 1,
-                "self": format!("{}/rest/agile/1.0/sprint/1", server.url()),
+                "self": format!("{}/rest/agile/latest/sprint/1", server.url()),
                 "name": "Sprint 1",
                 "state": "active",
                 "originBoardId": 1
             },
             {
                 "id": 2,
-                "self": format!("{}/rest/agile/1.0/sprint/2", server.url()),
+                "self": format!("{}/rest/agile/latest/sprint/2", server.url()),
                 "name": "Sprint 2",
                 "state": "closed",
                 "originBoardId": 1
@@ -279,7 +279,7 @@ fn test_sprint_iterator_single_page() {
     });
 
     server
-        .mock("GET", "/rest/agile/1.0/board/1/sprint?")
+        .mock("GET", "/rest/agile/latest/board/1/sprint?")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_sprints.to_string())
@@ -319,7 +319,7 @@ fn test_sprint_iterator_multiple_pages() {
         "values": [
             {
                 "id": 1,
-                "self": format!("{}/rest/agile/1.0/sprint/1", server.url()),
+                "self": format!("{}/rest/agile/latest/sprint/1", server.url()),
                 "name": "Sprint 1",
                 "state": "active",
                 "originBoardId": 1
@@ -335,7 +335,7 @@ fn test_sprint_iterator_multiple_pages() {
         "values": [
             {
                 "id": 2,
-                "self": format!("{}/rest/agile/1.0/sprint/2", server.url()),
+                "self": format!("{}/rest/agile/latest/sprint/2", server.url()),
                 "name": "Sprint 2",
                 "state": "closed",
                 "originBoardId": 1
@@ -344,7 +344,7 @@ fn test_sprint_iterator_multiple_pages() {
     });
 
     server
-        .mock("GET", "/rest/agile/1.0/board/1/sprint?maxResults=1")
+        .mock("GET", "/rest/agile/latest/board/1/sprint?maxResults=1")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(first_page.to_string())
@@ -353,7 +353,7 @@ fn test_sprint_iterator_multiple_pages() {
     server
         .mock(
             "GET",
-            "/rest/agile/1.0/board/1/sprint?maxResults=1&startAt=1",
+            "/rest/agile/latest/board/1/sprint?maxResults=1&startAt=1",
         )
         .with_status(200)
         .with_header("content-type", "application/json")
@@ -394,7 +394,7 @@ fn test_sprint_iterator_error_handling() {
         "values": [
             {
                 "id": 1,
-                "self": format!("{}/rest/agile/1.0/sprint/1", server.url()),
+                "self": format!("{}/rest/agile/latest/sprint/1", server.url()),
                 "name": "Sprint 1",
                 "state": "active",
                 "originBoardId": 1
@@ -403,7 +403,7 @@ fn test_sprint_iterator_error_handling() {
     });
 
     server
-        .mock("GET", "/rest/agile/1.0/board/1/sprint?maxResults=1")
+        .mock("GET", "/rest/agile/latest/board/1/sprint?maxResults=1")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(first_page.to_string())
@@ -413,11 +413,11 @@ fn test_sprint_iterator_error_handling() {
     server
         .mock(
             "GET",
-            "/rest/agile/1.0/board/1/sprint?maxResults=1&startAt=1",
+            "/rest/agile/latest/board/1/sprint?maxResults=1&startAt=1",
         )
         .with_status(500)
         .with_header("content-type", "application/json")
-        .with_body(json!({"errorMessages": ["Internal server error"]}).to_string())
+        .with_body(json!({"errorMessages": ["Internal server error"], "errors": {}}).to_string())
         .create();
 
     let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
@@ -441,7 +441,7 @@ fn test_sprint_deserialize_minimal() {
     // Test sprint with minimal required fields
     let json_data = json!({
         "id": 1,
-        "self": "http://localhost/rest/agile/1.0/sprint/1",
+        "self": "http://localhost/rest/agile/latest/sprint/1",
         "name": "Minimal Sprint"
     });
 
@@ -460,7 +460,7 @@ fn test_sprint_deserialize_with_dates() {
     // Test sprint with all date fields
     let json_data = json!({
         "id": 1,
-        "self": "http://localhost/rest/agile/1.0/sprint/1",
+        "self": "http://localhost/rest/agile/latest/sprint/1",
         "name": "Complete Sprint",
         "state": "closed",
         "startDate": "2023-01-01T00:00:00.000Z",

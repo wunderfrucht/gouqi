@@ -28,7 +28,7 @@ fn test_resolution_get_success() {
     });
 
     server
-        .mock("GET", "/rest/api/2/resolution/1")
+        .mock("GET", "/rest/api/latest/resolution/1")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_resolution.to_string())
@@ -53,7 +53,7 @@ fn test_resolution_get_not_found() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("GET", "/rest/api/2/resolution/999")
+        .mock("GET", "/rest/api/latest/resolution/999")
         .with_status(404)
         .with_header("content-type", "application/json")
         .with_body(json!({"errorMessages": ["Resolution does not exist"]}).to_string())
@@ -78,7 +78,7 @@ fn test_resolution_get_string_id() {
     });
 
     server
-        .mock("GET", "/rest/api/2/resolution/FIXED")
+        .mock("GET", "/rest/api/latest/resolution/FIXED")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_resolution.to_string())
@@ -111,7 +111,7 @@ fn test_resolution_get_with_numeric_id_conversion() {
     });
 
     server
-        .mock("GET", "/rest/api/2/resolution/42")
+        .mock("GET", "/rest/api/latest/resolution/42")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_resolution.to_string())
@@ -216,7 +216,7 @@ fn test_resolution_interface_multiple_calls() {
     });
 
     server
-        .mock("GET", "/rest/api/2/resolution/1")
+        .mock("GET", "/rest/api/latest/resolution/1")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_resolution1.to_string())
@@ -232,7 +232,7 @@ fn test_resolution_interface_multiple_calls() {
     });
 
     server
-        .mock("GET", "/rest/api/2/resolution/2")
+        .mock("GET", "/rest/api/latest/resolution/2")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_resolution2.to_string())
@@ -256,7 +256,7 @@ fn test_resolution_server_error() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("GET", "/rest/api/2/resolution/error")
+        .mock("GET", "/rest/api/latest/resolution/error")
         .with_status(500)
         .with_header("content-type", "application/json")
         .with_body(json!({"errorMessages": ["Internal server error"]}).to_string())
@@ -273,7 +273,7 @@ fn test_resolution_unauthorized() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("GET", "/rest/api/2/resolution/restricted")
+        .mock("GET", "/rest/api/latest/resolution/restricted")
         .with_status(401)
         .with_header("content-type", "application/json")
         .with_body(json!({"errorMessages": ["Unauthorized"]}).to_string())

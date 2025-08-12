@@ -35,11 +35,11 @@ fn test_component_get_success() {
         "isAssigneeTypeValid": true,
         "project": "TEST",
         "projectId": 10001,
-        "self": format!("{}/rest/api/2/component/10000", server.url())
+        "self": format!("{}/rest/api/latest/component/10000", server.url())
     });
 
     server
-        .mock("GET", "/rest/api/2/component/10000")
+        .mock("GET", "/rest/api/latest/component/10000")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_component.to_string())
@@ -59,7 +59,7 @@ fn test_component_get_not_found() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("GET", "/rest/api/2/component/99999")
+        .mock("GET", "/rest/api/latest/component/99999")
         .with_status(404)
         .with_header("content-type", "application/json")
         .with_body(json!({"errorMessages": ["Component does not exist"]}).to_string())
@@ -80,11 +80,11 @@ fn test_component_create_success() {
         "name": "New Component",
         "description": "A newly created component",
         "project": "TEST",
-        "self": format!("{}/rest/api/2/component/10001", server.url())
+        "self": format!("{}/rest/api/latest/component/10001", server.url())
     });
 
     server
-        .mock("POST", "/rest/api/2/component")
+        .mock("POST", "/rest/api/latest/component")
         .with_status(201)
         .with_header("content-type", "application/json")
         .with_body(mock_response.to_string())
@@ -120,11 +120,11 @@ fn test_component_create_without_description() {
         "name": "Simple Component",
         "description": null,
         "project": "TEST",
-        "self": format!("{}/rest/api/2/component/10002", server.url())
+        "self": format!("{}/rest/api/latest/component/10002", server.url())
     });
 
     server
-        .mock("POST", "/rest/api/2/component")
+        .mock("POST", "/rest/api/latest/component")
         .with_status(201)
         .with_header("content-type", "application/json")
         .with_body(mock_response.to_string())
@@ -152,7 +152,7 @@ fn test_component_create_invalid_project() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("POST", "/rest/api/2/component")
+        .mock("POST", "/rest/api/latest/component")
         .with_status(400)
         .with_header("content-type", "application/json")
         .with_body(json!({"errorMessages": ["Invalid project key"]}).to_string())
@@ -179,11 +179,11 @@ fn test_component_edit_success() {
         "name": "Updated Component",
         "description": "Updated description",
         "project": "TEST",
-        "self": format!("{}/rest/api/2/component/10000", server.url())
+        "self": format!("{}/rest/api/latest/component/10000", server.url())
     });
 
     server
-        .mock("PUT", "/rest/api/2/component/10000")
+        .mock("PUT", "/rest/api/latest/component/10000")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_response.to_string())
@@ -214,7 +214,7 @@ fn test_component_edit_not_found() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("PUT", "/rest/api/2/component/99999")
+        .mock("PUT", "/rest/api/latest/component/99999")
         .with_status(404)
         .with_header("content-type", "application/json")
         .with_body(json!({"errorMessages": ["Component does not exist"]}).to_string())
@@ -243,7 +243,7 @@ fn test_component_list_success() {
             "description": "Backend components",
             "project": "TEST",
             "projectId": 10001,
-            "self": format!("{}/rest/api/2/component/10000", server.url())
+            "self": format!("{}/rest/api/latest/component/10000", server.url())
         },
         {
             "id": "10001",
@@ -251,12 +251,12 @@ fn test_component_list_success() {
             "description": "Frontend components",
             "project": "TEST",
             "projectId": 10001,
-            "self": format!("{}/rest/api/2/component/10001", server.url())
+            "self": format!("{}/rest/api/latest/component/10001", server.url())
         }
     ]);
 
     server
-        .mock("GET", "/rest/api/2/project/TEST/components")
+        .mock("GET", "/rest/api/latest/project/TEST/components")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_components.to_string())
@@ -281,7 +281,7 @@ fn test_component_list_empty() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("GET", "/rest/api/2/project/EMPTY/components")
+        .mock("GET", "/rest/api/latest/project/EMPTY/components")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body("[]")
@@ -300,7 +300,7 @@ fn test_component_list_project_not_found() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("GET", "/rest/api/2/project/NOTFOUND/components")
+        .mock("GET", "/rest/api/latest/project/NOTFOUND/components")
         .with_status(404)
         .with_header("content-type", "application/json")
         .with_body(json!({"errorMessages": ["Project not found"]}).to_string())
@@ -322,12 +322,12 @@ fn test_component_list_by_project_id() {
             "name": "Component by ID",
             "project": "BYID",
             "projectId": 12345,
-            "self": format!("{}/rest/api/2/component/10000", server.url())
+            "self": format!("{}/rest/api/latest/component/10000", server.url())
         }
     ]);
 
     server
-        .mock("GET", "/rest/api/2/project/12345/components")
+        .mock("GET", "/rest/api/latest/project/12345/components")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_components.to_string())
@@ -373,7 +373,7 @@ fn test_create_component_response_deserialization() {
         "name": "Response Component",
         "description": "Response description",
         "project": "RESP",
-        "self": "http://localhost/rest/api/2/component/10000"
+        "self": "http://localhost/rest/api/latest/component/10000"
     });
 
     let response: CreateComponentResponse = serde_json::from_value(json_data).unwrap();
@@ -384,7 +384,7 @@ fn test_create_component_response_deserialization() {
         Some("Response description".to_string())
     );
     assert_eq!(response.project, "RESP");
-    assert_eq!(response.url, "http://localhost/rest/api/2/component/10000");
+    assert_eq!(response.url, "http://localhost/rest/api/latest/component/10000");
 }
 
 #[test]
@@ -396,11 +396,11 @@ fn test_components_interface_multiple_operations() {
         "id": "10000",
         "name": "Existing Component",
         "project": "MULTI",
-        "self": format!("{}/rest/api/2/component/10000", server.url())
+        "self": format!("{}/rest/api/latest/component/10000", server.url())
     });
 
     server
-        .mock("GET", "/rest/api/2/component/10000")
+        .mock("GET", "/rest/api/latest/component/10000")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_component.to_string())
@@ -411,11 +411,11 @@ fn test_components_interface_multiple_operations() {
         "id": "10001",
         "name": "New Component",
         "project": "MULTI",
-        "self": format!("{}/rest/api/2/component/10001", server.url())
+        "self": format!("{}/rest/api/latest/component/10001", server.url())
     });
 
     server
-        .mock("POST", "/rest/api/2/component")
+        .mock("POST", "/rest/api/latest/component")
         .with_status(201)
         .with_header("content-type", "application/json")
         .with_body(mock_create_response.to_string())
@@ -425,7 +425,7 @@ fn test_components_interface_multiple_operations() {
     let mock_list = json!([mock_component, mock_create_response]);
 
     server
-        .mock("GET", "/rest/api/2/project/MULTI/components")
+        .mock("GET", "/rest/api/latest/project/MULTI/components")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_list.to_string())
