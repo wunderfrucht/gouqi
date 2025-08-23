@@ -11,6 +11,7 @@ use crate::boards::Boards;
 use crate::components::Components;
 use crate::core::ClientCore;
 use crate::issues::Issues;
+use crate::projects::Projects;
 use crate::rep::Session;
 use crate::resolution::Resolution;
 use crate::search::Search;
@@ -101,6 +102,20 @@ impl Jira {
     #[tracing::instrument]
     pub fn issues(&self) -> Issues {
         Issues::new(self)
+    }
+
+    /// Returns the projects interface for working with Jira projects
+    ///
+    /// Projects in Jira contain issues and define the scope of work. This interface
+    /// provides methods to create, retrieve, update, and delete projects, as well as
+    /// manage project components, versions, and roles.
+    ///
+    /// # Returns
+    ///
+    /// A `Projects` instance configured with this client
+    #[tracing::instrument]
+    pub fn projects(&self) -> Projects {
+        Projects::new(self)
     }
 
     /// Returns the attachments interface for working with Jira issue attachments

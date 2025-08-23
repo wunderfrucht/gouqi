@@ -8,7 +8,8 @@
       "Bash(cargo:*)",
       "Bash(ls:*)",
       "Bash(gh pr checks:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(gh issue view:*)"
     ],
     "deny": []
   }
