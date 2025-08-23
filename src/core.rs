@@ -11,7 +11,7 @@ use crate::Error;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// An empty response structure, used for endpoints that return no data
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct EmptyResponse;
 
 /// Types of authentication credentials
