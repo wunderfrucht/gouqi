@@ -379,7 +379,6 @@ pub struct ProjectSearchOptions {
     pub project_type_key: Option<String>,
 }
 
-
 impl ProjectSearchOptions {
     /// Serialize the search options to query parameters
     pub fn serialize(&self) -> Result<Vec<(String, String)>> {
