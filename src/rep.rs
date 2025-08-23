@@ -7,6 +7,7 @@ use tracing::error;
 
 // Ours
 use crate::{Jira, Result};
+// Forward reference - Component is defined later in this file but used by Project
 
 /// Represents an general jira error response
 #[derive(Serialize, Deserialize, Debug)]
@@ -270,10 +271,173 @@ pub struct HistoryItem {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Project {
+    #[serde(rename = "self")]
+    pub self_link: String,
     pub id: String,
     pub key: String,
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub project_type_key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lead: Option<User>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub components: Option<Vec<ProjectComponent>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub versions: Option<Vec<Version>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub roles: Option<BTreeMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar_urls: Option<BTreeMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_category: Option<ProjectCategory>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issue_types: Option<Vec<IssueType>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProjectComponent {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(rename = "self", skip_serializing_if = "Option::is_none")]
+    pub self_link: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateProject {
+    pub key: String,
+    pub name: String,
+    pub project_type_key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lead: Option<String>, // username or account ID
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assignee_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar_id: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issue_security_scheme: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub permission_scheme: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notification_scheme: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_id: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateProject {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lead: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assignee_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar_id: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_id: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProjectCategory {
+    #[serde(rename = "self")]
+    pub self_link: String,
+    pub id: String,
+    pub name: String,
+    pub description: String,
+}
+
+#[derive(Serialize, Debug, Default)]
+pub struct ProjectSearchOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub query: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_at: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_results: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_by: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_id: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_type_key: Option<String>,
+}
+
+
+impl ProjectSearchOptions {
+    /// Serialize the search options to query parameters
+    pub fn serialize(&self) -> Result<Vec<(String, String)>> {
+        let mut params = Vec::new();
+
+        if let Some(ref query) = self.query {
+            params.push(("query".to_string(), query.clone()));
+        }
+        if let Some(start_at) = self.start_at {
+            params.push(("startAt".to_string(), start_at.to_string()));
+        }
+        if let Some(max_results) = self.max_results {
+            params.push(("maxResults".to_string(), max_results.to_string()));
+        }
+        if let Some(ref order_by) = self.order_by {
+            params.push(("orderBy".to_string(), order_by.clone()));
+        }
+        if let Some(category_id) = self.category_id {
+            params.push(("categoryId".to_string(), category_id.to_string()));
+        }
+        if let Some(ref project_type_key) = self.project_type_key {
+            params.push(("projectTypeKey".to_string(), project_type_key.clone()));
+        }
+
+        Ok(params)
+    }
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectSearchResults {
+    pub start_at: u64,
+    pub max_results: u64,
+    pub total: u64,
+    pub values: Vec<Project>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ProjectRole {
+    #[serde(rename = "self")]
+    pub self_link: String,
+    pub name: String,
+    pub id: u64,
+    pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub actors: Option<Vec<RoleActor>>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct RoleActor {
+    pub id: u64,
+    #[serde(rename = "displayName")]
+    pub display_name: String,
+    #[serde(rename = "type")]
+    pub actor_type: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
 }
 
 /// Represents link relationship between issues
@@ -301,7 +465,7 @@ pub struct LinkType {
     pub self_link: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Version {
     pub archived: bool,
     pub id: String,

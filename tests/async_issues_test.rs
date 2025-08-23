@@ -47,9 +47,19 @@ mod async_issues_tests {
                 self_link: "link".to_string(),
             },
             project: Project {
+                self_link: "self".to_string(),
                 id: "1".to_string(),
                 key: "PROJ".to_string(),
                 name: "Project".to_string(),
+                description: None,
+                project_type_key: "software".to_string(),
+                lead: None,
+                components: None,
+                versions: None,
+                roles: None,
+                avatar_urls: None,
+                project_category: None,
+                issue_types: None,
             },
             reporter: issues::Assignee {
                 name: "reporter".to_string(),
@@ -121,9 +131,19 @@ mod async_issues_tests {
         };
 
         let project = Project {
+            self_link: "self".to_string(),
             id: "TEST".to_string(),
             key: "TEST".to_string(),
             name: "Test Project".to_string(),
+            description: None,
+            project_type_key: "software".to_string(),
+            lead: None,
+            components: None,
+            versions: None,
+            roles: None,
+            avatar_urls: None,
+            project_category: None,
+            issue_types: None,
         };
 
         let fields = Fields {
@@ -479,9 +499,19 @@ mod async_issues_tests {
         };
 
         let project = Project {
+            self_link: "self".to_string(),
             id: "TEST".to_string(),
             key: "TEST".to_string(),
             name: "Test Project".to_string(),
+            description: None,
+            project_type_key: "software".to_string(),
+            lead: None,
+            components: None,
+            versions: None,
+            roles: None,
+            avatar_urls: None,
+            project_category: None,
+            issue_types: None,
         };
 
         let fields = Fields {

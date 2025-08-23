@@ -125,6 +125,20 @@ impl Jira {
         crate::issues::AsyncIssues::new(self)
     }
 
+    /// Returns the projects interface for working with Jira projects asynchronously
+    ///
+    /// Projects in Jira contain issues and define the scope of work. This interface
+    /// provides methods to create, retrieve, update, and delete projects, as well as
+    /// manage project components, versions, and roles.
+    ///
+    /// # Returns
+    ///
+    /// An `AsyncProjects` instance configured with this client
+    #[tracing::instrument]
+    pub fn projects(&self) -> crate::projects::AsyncProjects {
+        crate::projects::AsyncProjects::new(self)
+    }
+
     /// Returns the boards interface for working with Jira Agile boards asynchronously
     ///
     /// Boards in Jira Agile provide a visual way to manage work. This interface
