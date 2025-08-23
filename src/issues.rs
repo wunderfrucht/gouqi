@@ -136,6 +136,62 @@ pub struct AddComment {
     pub body: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct AssignRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assignee: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Watchers {
+    #[serde(rename = "self")]
+    pub self_link: String,
+    pub watchers: Vec<crate::User>,
+    #[serde(rename = "watchCount")]
+    pub watch_count: u32,
+    #[serde(rename = "isWatching")]
+    pub is_watching: bool,
+}
+
+#[derive(Serialize, Debug)]
+pub struct BulkCreateRequest {
+    #[serde(rename = "issueUpdates")]
+    pub issue_updates: Vec<CreateIssue>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct BulkUpdateRequest {
+    #[serde(rename = "issueUpdates")]
+    pub issue_updates: Vec<BulkIssueUpdate>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct BulkIssueUpdate {
+    pub key: String,
+    pub fields: BTreeMap<String, serde_json::Value>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct BulkCreateResponse {
+    pub issues: Vec<CreateResponse>,
+    pub errors: Vec<BulkError>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct BulkUpdateResponse {
+    pub issues: Vec<Issue>,
+    pub errors: Vec<BulkError>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct BulkError {
+    pub status: u16,
+    #[serde(rename = "elementErrors")]
+    pub element_errors: crate::Errors,
+    #[serde(rename = "failedElementNumber")]
+    pub failed_element_number: Option<u32>,
+}
+
 impl Issues {
     pub fn new(jira: &Jira) -> Issues {
         Issues { jira: jira.clone() }
@@ -495,6 +551,293 @@ impl Issues {
         }
 
         Ok(graph)
+    }
+
+    /// Delete an issue
+    ///
+    /// Deletes an issue from Jira. The issue must exist and the user must have
+    /// permission to delete it.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The issue key (e.g., "PROJ-123") or ID
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use gouqi::{Credentials, Jira};
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
+    /// // Delete an issue
+    /// jira.issues().delete("PROJ-123")?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - The issue does not exist
+    /// - The user lacks permission to delete the issue
+    /// - The issue cannot be deleted due to workflow restrictions
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-deleteIssue)
+    /// for more information
+    pub fn delete<I>(&self, id: I) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        self.jira.delete("api", &format!("/issue/{}", id.into()))
+    }
+
+    /// Archive an issue
+    ///
+    /// Archives an issue in Jira. Archived issues are hidden from most views
+    /// but can be restored later if needed.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The issue key (e.g., "PROJ-123") or ID
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use gouqi::{Credentials, Jira};
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
+    /// // Archive an issue
+    /// jira.issues().archive("PROJ-123")?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - The issue does not exist
+    /// - The user lacks permission to archive the issue
+    /// - The issue is already archived
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-archiveIssue)
+    /// for more information
+    pub fn archive<I>(&self, id: I) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        self.jira
+            .post("api", &format!("/issue/{}/archive", id.into()), ())
+    }
+
+    /// Assign or unassign an issue
+    ///
+    /// Assigns an issue to a specific user or unassigns it by passing `None`.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The issue key (e.g., "PROJ-123") or ID
+    /// * `assignee` - The username to assign to, or `None` to unassign
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use gouqi::{Credentials, Jira};
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
+    /// // Assign an issue to a user
+    /// jira.issues().assign("PROJ-123", Some("johndoe".to_string()))?;
+    ///
+    /// // Unassign an issue
+    /// jira.issues().assign("PROJ-123", None)?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - The issue does not exist
+    /// - The user lacks permission to assign the issue
+    /// - The specified assignee is invalid or doesn't exist
+    /// - The assignee cannot be assigned to issues in this project
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-assign)
+    /// for more information
+    pub fn assign<I>(&self, id: I, assignee: Option<String>) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        let assign_request = AssignRequest { assignee };
+        self.jira.put(
+            "api",
+            &format!("/issue/{}/assignee", id.into()),
+            assign_request,
+        )
+    }
+
+    /// Get list of users watching an issue
+    ///
+    /// Returns information about all users watching the specified issue,
+    /// including the total watch count and whether the current user is watching.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The issue key (e.g., "PROJ-123") or ID
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use gouqi::{Credentials, Jira};
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
+    /// let watchers = jira.issues().get_watchers("PROJ-123")?;
+    /// println!("Total watchers: {}", watchers.watch_count);
+    /// println!("I'm watching: {}", watchers.is_watching);
+    ///
+    /// for watcher in &watchers.watchers {
+    ///     println!("Watcher: {}", watcher.display_name);
+    /// }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-getIssueWatchers)
+    /// for more information
+    pub fn get_watchers<I>(&self, id: I) -> Result<Watchers>
+    where
+        I: Into<String>,
+    {
+        self.jira
+            .get("api", &format!("/issue/{}/watchers", id.into()))
+    }
+
+    /// Add a watcher to an issue
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-addWatcher)
+    /// for more information
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the user cannot be added as a watcher
+    pub fn add_watcher<I>(&self, id: I, username: String) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        self.jira
+            .post("api", &format!("/issue/{}/watchers", id.into()), username)
+    }
+
+    /// Remove a watcher from an issue
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-removeWatcher)
+    /// for more information
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the watcher cannot be removed
+    pub fn remove_watcher<I>(&self, id: I, username: String) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        self.jira.delete(
+            "api",
+            &format!("/issue/{}/watchers?username={}", id.into(), username),
+        )
+    }
+
+    /// Vote for an issue
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-addVote)
+    /// for more information
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if voting fails
+    pub fn vote<I>(&self, id: I) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        self.jira
+            .post("api", &format!("/issue/{}/votes", id.into()), ())
+    }
+
+    /// Remove vote from an issue
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-removeVote)
+    /// for more information
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if vote removal fails
+    pub fn unvote<I>(&self, id: I) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        self.jira
+            .delete("api", &format!("/issue/{}/votes", id.into()))
+    }
+
+    /// Create multiple issues in a single request
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-createIssues)
+    /// for more information
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if any issue creation fails validation
+    pub fn bulk_create(&self, issues: Vec<CreateIssue>) -> Result<BulkCreateResponse> {
+        let bulk_request = BulkCreateRequest {
+            issue_updates: issues,
+        };
+        self.jira.post("api", "/issue/bulk", bulk_request)
+    }
+
+    /// Update multiple issues in a single request
+    ///
+    /// Performs bulk updates on multiple issues efficiently in a single API call.
+    /// Each issue can have different fields updated.
+    ///
+    /// # Arguments
+    ///
+    /// * `updates` - A `BulkUpdateRequest` containing all the issues to update
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use gouqi::{Credentials, Jira};
+    /// # use gouqi::issues::{BulkUpdateRequest, BulkIssueUpdate};
+    /// # use std::collections::BTreeMap;
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
+    /// // Update multiple issues
+    /// let mut fields1 = BTreeMap::new();
+    /// fields1.insert("summary".to_string(),
+    ///               serde_json::Value::String("New summary".to_string()));
+    ///
+    /// let mut fields2 = BTreeMap::new();
+    /// fields2.insert("priority".to_string(),
+    ///               serde_json::json!({ "name": "High" }));
+    ///
+    /// let request = BulkUpdateRequest {
+    ///     issue_updates: vec![
+    ///         BulkIssueUpdate {
+    ///             key: "PROJ-123".to_string(),
+    ///             fields: fields1,
+    ///         },
+    ///         BulkIssueUpdate {
+    ///             key: "PROJ-124".to_string(),
+    ///             fields: fields2,
+    ///         },
+    ///     ],
+    /// };
+    ///
+    /// let response = jira.issues().bulk_update(request)?;
+    /// println!("Updated {} issues", response.issues.len());
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - Any of the issues don't exist
+    /// - The user lacks permission to update any of the issues
+    /// - Invalid field values are provided
+    /// - Request size exceeds Jira's limits
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-updateBulkIssues)
+    /// for more information
+    pub fn bulk_update(&self, updates: BulkUpdateRequest) -> Result<BulkUpdateResponse> {
+        self.jira.put("api", "/issue/bulk", updates)
     }
 }
 
@@ -905,6 +1248,173 @@ impl AsyncIssues {
         }
 
         Ok(graph)
+    }
+
+    /// Delete an issue (async)
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-deleteIssue)
+    /// for more information
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the issue cannot be deleted due to workflow restrictions
+    pub async fn delete<I>(&self, id: I) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        self.jira
+            .delete("api", &format!("/issue/{}", id.into()))
+            .await
+    }
+
+    /// Archive an issue (async)
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-archiveIssue)
+    /// for more information
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the issue cannot be archived
+    pub async fn archive<I>(&self, id: I) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        self.jira
+            .post("api", &format!("/issue/{}/archive", id.into()), ())
+            .await
+    }
+
+    /// Assign an issue to a user (async, None for unassign)
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-assign)
+    /// for more information
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the assignee is invalid
+    pub async fn assign<I>(&self, id: I, assignee: Option<String>) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        let assign_request = AssignRequest { assignee };
+        self.jira
+            .put(
+                "api",
+                &format!("/issue/{}/assignee", id.into()),
+                assign_request,
+            )
+            .await
+    }
+
+    /// Get list of users watching an issue (async)
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-getIssueWatchers)
+    /// for more information
+    pub async fn get_watchers<I>(&self, id: I) -> Result<Watchers>
+    where
+        I: Into<String>,
+    {
+        self.jira
+            .get("api", &format!("/issue/{}/watchers", id.into()))
+            .await
+    }
+
+    /// Add a watcher to an issue (async)
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-addWatcher)
+    /// for more information
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the user cannot be added as a watcher
+    pub async fn add_watcher<I>(&self, id: I, username: String) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        self.jira
+            .post("api", &format!("/issue/{}/watchers", id.into()), username)
+            .await
+    }
+
+    /// Remove a watcher from an issue (async)
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-removeWatcher)
+    /// for more information
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the watcher cannot be removed
+    pub async fn remove_watcher<I>(&self, id: I, username: String) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        self.jira
+            .delete(
+                "api",
+                &format!("/issue/{}/watchers?username={}", id.into(), username),
+            )
+            .await
+    }
+
+    /// Vote for an issue (async)
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-addVote)
+    /// for more information
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if voting fails
+    pub async fn vote<I>(&self, id: I) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        self.jira
+            .post("api", &format!("/issue/{}/votes", id.into()), ())
+            .await
+    }
+
+    /// Remove vote from an issue (async)
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-removeVote)
+    /// for more information
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if vote removal fails
+    pub async fn unvote<I>(&self, id: I) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        self.jira
+            .delete("api", &format!("/issue/{}/votes", id.into()))
+            .await
+    }
+
+    /// Create multiple issues in a single request (async)
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-createIssues)
+    /// for more information
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if any issue creation fails validation
+    pub async fn bulk_create(&self, issues: Vec<CreateIssue>) -> Result<BulkCreateResponse> {
+        let bulk_request = BulkCreateRequest {
+            issue_updates: issues,
+        };
+        self.jira.post("api", "/issue/bulk", bulk_request).await
+    }
+
+    /// Update multiple issues in a single request (async)
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-updateBulkIssues)
+    /// for more information
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if any update fails validation
+    pub async fn bulk_update(&self, updates: BulkUpdateRequest) -> Result<BulkUpdateResponse> {
+        self.jira.put("api", "/issue/bulk", updates).await
     }
 }
 
