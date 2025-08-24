@@ -67,6 +67,7 @@ mod builder;
 pub mod components;
 mod errors;
 pub mod issues;
+pub mod mcp;
 pub mod projects;
 pub mod relationships;
 mod rep;
@@ -91,6 +92,7 @@ pub mod boards;
 pub mod resolution;
 pub use crate::boards::*;
 pub mod sprints;
+pub use crate::mcp::*;
 pub use crate::sprints::*;
 pub use crate::versions::*;
 
