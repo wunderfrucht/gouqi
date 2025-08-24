@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use gouqi::Credentials;
 use gouqi::env::{load_config_from_env, load_credentials_from_env, load_host_from_env};
+use serial_test::serial;
 
 // Helper functions for safe environment variable operations in tests
 fn set_test_env_var(key: &str, value: &str) {
@@ -60,6 +61,7 @@ fn clear_jira_env_vars() {
 }
 
 #[test]
+#[serial]
 fn test_load_credentials_anonymous() {
     clear_jira_env_vars();
 
@@ -68,6 +70,7 @@ fn test_load_credentials_anonymous() {
 }
 
 #[test]
+#[serial]
 fn test_load_credentials_basic() {
     clear_jira_env_vars();
 
@@ -86,6 +89,7 @@ fn test_load_credentials_basic() {
 }
 
 #[test]
+#[serial]
 fn test_load_credentials_bearer() {
     clear_jira_env_vars();
 
@@ -102,6 +106,7 @@ fn test_load_credentials_bearer() {
 }
 
 #[test]
+#[serial]
 fn test_load_credentials_cookie() {
     clear_jira_env_vars();
 
@@ -118,6 +123,7 @@ fn test_load_credentials_cookie() {
 }
 
 #[test]
+#[serial]
 fn test_load_credentials_priority_order() {
     clear_jira_env_vars();
 
@@ -139,6 +145,7 @@ fn test_load_credentials_priority_order() {
 }
 
 #[test]
+#[serial]
 fn test_load_credentials_empty_values() {
     clear_jira_env_vars();
 
@@ -155,6 +162,7 @@ fn test_load_credentials_empty_values() {
 }
 
 #[test]
+#[serial]
 fn test_load_host_from_env() {
     clear_jira_env_vars();
 
@@ -183,6 +191,7 @@ fn test_load_host_from_env() {
 }
 
 #[test]
+#[serial]
 fn test_load_config_basic() {
     clear_jira_env_vars();
 
@@ -201,6 +210,7 @@ fn test_load_config_basic() {
 }
 
 #[test]
+#[serial]
 fn test_load_config_duration_formats() {
     clear_jira_env_vars();
 
@@ -219,6 +229,7 @@ fn test_load_config_duration_formats() {
 }
 
 #[test]
+#[serial]
 fn test_load_config_boolean_formats() {
     clear_jira_env_vars();
 
@@ -252,6 +263,7 @@ fn test_load_config_boolean_formats() {
 }
 
 #[test]
+#[serial]
 fn test_load_config_invalid_values() {
     clear_jira_env_vars();
 
@@ -274,6 +286,7 @@ fn test_load_config_invalid_values() {
 }
 
 #[test]
+#[serial]
 fn test_retry_status_codes_parsing() {
     clear_jira_env_vars();
 
@@ -294,6 +307,7 @@ fn test_retry_status_codes_parsing() {
 }
 
 #[test]
+#[serial]
 fn test_cache_strategies_parsing() {
     clear_jira_env_vars();
 
@@ -323,6 +337,7 @@ fn test_cache_strategies_parsing() {
 }
 
 #[test]
+#[serial]
 fn test_rate_limit_overrides_parsing() {
     clear_jira_env_vars();
 
@@ -359,6 +374,7 @@ fn test_rate_limit_overrides_parsing() {
 }
 
 #[test]
+#[serial]
 fn test_metrics_export_config() {
     clear_jira_env_vars();
 

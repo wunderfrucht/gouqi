@@ -6,6 +6,7 @@ use std::env;
 use std::time::Duration;
 
 use gouqi::{Credentials, GouqiConfig, JiraBuilder};
+use serial_test::serial;
 
 // Helper to check if integration tests should run
 fn should_run_integration_tests() -> Option<(String, Credentials)> {
@@ -65,9 +66,13 @@ integration_test!(
     }
 );
 
-integration_test!(
-    test_environment_config_integration,
-    |_host: String, _creds: Credentials| -> Result<(), Box<dyn std::error::Error>> {
+#[test]
+#[serial]
+fn test_environment_config_integration() {
+    match should_run_integration_tests() {
+        Some((host, creds)) => {
+            println!("Running integration test against: {}", host);
+            let test_fn = |_host: String, _creds: Credentials| -> Result<(), Box<dyn std::error::Error>> {
         // Test environment-based configuration
         // Note: We don't override the provided credentials since the macro already verified they work
 
@@ -94,8 +99,15 @@ integration_test!(
         }
 
         Ok(())
+    };
+            test_fn(host, creds).expect("Integration test failed");
+        }
+        None => {
+            println!("Skipping test_environment_config_integration - set INTEGRATION_JIRA_HOST and credentials");
+            println!("  Credentials: INTEGRATION_JIRA_TOKEN or (INTEGRATION_JIRA_USER + INTEGRATION_JIRA_PASS)");
+        }
     }
-);
+}
 
 integration_test!(
     test_high_throughput_config_integration,
