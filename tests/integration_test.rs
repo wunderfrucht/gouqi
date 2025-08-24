@@ -72,39 +72,44 @@ fn test_environment_config_integration() {
     match should_run_integration_tests() {
         Some((host, creds)) => {
             println!("Running integration test against: {}", host);
-            let test_fn = |_host: String, _creds: Credentials| -> Result<(), Box<dyn std::error::Error>> {
-        // Test environment-based configuration
-        // Note: We don't override the provided credentials since the macro already verified they work
+            let test_fn =
+                |_host: String, _creds: Credentials| -> Result<(), Box<dyn std::error::Error>> {
+                    // Test environment-based configuration
+                    // Note: We don't override the provided credentials since the macro already verified they work
 
-        // Set some additional config via environment
-        unsafe {
-            env::set_var("JIRA_TIMEOUT", "45");
-            env::set_var("JIRA_MAX_RETRIES", "5");
-            env::set_var("JIRA_CACHE_ENABLED", "true");
-            env::set_var("JIRA_METRICS_ENABLED", "false"); // Disable metrics for integration testing
-        }
+                    // Set some additional config via environment
+                    unsafe {
+                        env::set_var("JIRA_TIMEOUT", "45");
+                        env::set_var("JIRA_MAX_RETRIES", "5");
+                        env::set_var("JIRA_CACHE_ENABLED", "true");
+                        env::set_var("JIRA_METRICS_ENABLED", "false"); // Disable metrics for integration testing
+                    }
 
-        let _client = JiraBuilder::new()
-            .config_from_env()?
-            .build_with_validation()?;
+                    let _client = JiraBuilder::new()
+                        .config_from_env()?
+                        .build_with_validation()?;
 
-        println!("✓ Environment configuration client created successfully");
+                    println!("✓ Environment configuration client created successfully");
 
-        // Cleanup
-        unsafe {
-            env::remove_var("JIRA_TIMEOUT");
-            env::remove_var("JIRA_MAX_RETRIES");
-            env::remove_var("JIRA_CACHE_ENABLED");
-            env::remove_var("JIRA_METRICS_ENABLED");
-        }
+                    // Cleanup
+                    unsafe {
+                        env::remove_var("JIRA_TIMEOUT");
+                        env::remove_var("JIRA_MAX_RETRIES");
+                        env::remove_var("JIRA_CACHE_ENABLED");
+                        env::remove_var("JIRA_METRICS_ENABLED");
+                    }
 
-        Ok(())
-    };
+                    Ok(())
+                };
             test_fn(host, creds).expect("Integration test failed");
         }
         None => {
-            println!("Skipping test_environment_config_integration - set INTEGRATION_JIRA_HOST and credentials");
-            println!("  Credentials: INTEGRATION_JIRA_TOKEN or (INTEGRATION_JIRA_USER + INTEGRATION_JIRA_PASS)");
+            println!(
+                "Skipping test_environment_config_integration - set INTEGRATION_JIRA_HOST and credentials"
+            );
+            println!(
+                "  Credentials: INTEGRATION_JIRA_TOKEN or (INTEGRATION_JIRA_USER + INTEGRATION_JIRA_PASS)"
+            );
         }
     }
 }
