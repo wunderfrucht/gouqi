@@ -316,6 +316,7 @@ fn parse_bool(s: &str) -> Option<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     fn set_test_env_var(key: &str, value: &str) {
         unsafe {
@@ -330,6 +331,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_parse_duration() {
         assert_eq!(parse_duration("30"), Some(Duration::from_secs(30)));
         assert_eq!(parse_duration("500ms"), Some(Duration::from_millis(500)));
@@ -340,6 +342,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_parse_bool() {
         assert_eq!(parse_bool("true"), Some(true));
         assert_eq!(parse_bool("TRUE"), Some(true));
@@ -359,6 +362,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_load_credentials_anonymous() {
         // Clear any existing environment variables
         remove_test_env_var("JIRA_USER");
@@ -371,6 +375,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_load_credentials_basic() {
         set_test_env_var("JIRA_USER", "testuser");
         set_test_env_var("JIRA_PASS", "testpass");
@@ -391,6 +396,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_load_credentials_bearer() {
         set_test_env_var("JIRA_TOKEN", "bearer-token-123");
         remove_test_env_var("JIRA_USER");
