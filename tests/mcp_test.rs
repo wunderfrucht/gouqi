@@ -1,6 +1,6 @@
 use gouqi::mcp::*;
 use gouqi::mcp::{error, schema, uri, validation};
-use gouqi::{Error, Issue, Project, User, Version, Board, Sprint, ProjectComponent, Location};
+use gouqi::{Board, Error, Issue, Location, Project, ProjectComponent, Sprint, User, Version};
 use serde_json::json;
 use std::collections::BTreeMap;
 
@@ -142,11 +142,11 @@ fn test_list_issue_transitions_tool_schema() {
     let tool = schema::list_issue_transitions_tool();
     assert_eq!(tool.name, "jira_list_issue_transitions");
     assert!(tool.description.contains("List available transitions"));
-    
+
     let schema = tool.input_schema.as_object().unwrap();
     let properties = schema.get("properties").unwrap().as_object().unwrap();
     assert!(properties.contains_key("issue_key"));
-    
+
     let required = schema.get("required").unwrap().as_array().unwrap();
     assert!(required.contains(&json!("issue_key")));
 }
@@ -156,7 +156,7 @@ fn test_trigger_issue_transition_tool_schema() {
     let tool = schema::trigger_issue_transition_tool();
     assert_eq!(tool.name, "jira_trigger_issue_transition");
     assert!(tool.description.contains("Trigger a transition"));
-    
+
     let schema = tool.input_schema.as_object().unwrap();
     let properties = schema.get("properties").unwrap().as_object().unwrap();
     assert!(properties.contains_key("issue_key"));
@@ -164,7 +164,7 @@ fn test_trigger_issue_transition_tool_schema() {
     assert!(properties.contains_key("comment"));
     assert!(properties.contains_key("resolution"));
     assert!(properties.contains_key("fields"));
-    
+
     let required = schema.get("required").unwrap().as_array().unwrap();
     assert!(required.contains(&json!("issue_key")));
     assert!(required.contains(&json!("transition_id")));
@@ -175,11 +175,11 @@ fn test_list_issue_attachments_tool_schema() {
     let tool = schema::list_issue_attachments_tool();
     assert_eq!(tool.name, "jira_list_issue_attachments");
     assert!(tool.description.contains("List all attachments"));
-    
+
     let schema = tool.input_schema.as_object().unwrap();
     let properties = schema.get("properties").unwrap().as_object().unwrap();
     assert!(properties.contains_key("issue_key"));
-    
+
     let required = schema.get("required").unwrap().as_array().unwrap();
     assert!(required.contains(&json!("issue_key")));
 }
@@ -189,14 +189,14 @@ fn test_upload_issue_attachment_tool_schema() {
     let tool = schema::upload_issue_attachment_tool();
     assert_eq!(tool.name, "jira_upload_issue_attachment");
     assert!(tool.description.contains("Upload an attachment"));
-    
+
     let schema = tool.input_schema.as_object().unwrap();
     let properties = schema.get("properties").unwrap().as_object().unwrap();
     assert!(properties.contains_key("issue_key"));
     assert!(properties.contains_key("filename"));
     assert!(properties.contains_key("content"));
     assert!(properties.contains_key("content_type"));
-    
+
     let required = schema.get("required").unwrap().as_array().unwrap();
     assert!(required.contains(&json!("issue_key")));
     assert!(required.contains(&json!("filename")));
@@ -208,14 +208,14 @@ fn test_create_project_component_tool_schema() {
     let tool = schema::create_project_component_tool();
     assert_eq!(tool.name, "jira_create_project_component");
     assert!(tool.description.contains("Create a new component"));
-    
+
     let schema = tool.input_schema.as_object().unwrap();
     let properties = schema.get("properties").unwrap().as_object().unwrap();
     assert!(properties.contains_key("project"));
     assert!(properties.contains_key("name"));
     assert!(properties.contains_key("description"));
     assert!(properties.contains_key("lead"));
-    
+
     let required = schema.get("required").unwrap().as_array().unwrap();
     assert!(required.contains(&json!("project")));
     assert!(required.contains(&json!("name")));
@@ -226,14 +226,14 @@ fn test_update_project_component_tool_schema() {
     let tool = schema::update_project_component_tool();
     assert_eq!(tool.name, "jira_update_project_component");
     assert!(tool.description.contains("Update an existing"));
-    
+
     let schema = tool.input_schema.as_object().unwrap();
     let properties = schema.get("properties").unwrap().as_object().unwrap();
     assert!(properties.contains_key("component_id"));
     assert!(properties.contains_key("name"));
     assert!(properties.contains_key("description"));
     assert!(properties.contains_key("lead"));
-    
+
     let required = schema.get("required").unwrap().as_array().unwrap();
     assert!(required.contains(&json!("component_id")));
 }
@@ -415,7 +415,10 @@ fn test_user_to_mcp_resource() {
 
     assert_eq!(resource.uri, "jira://user/Test User");
     assert_eq!(resource.name, "User: Test User");
-    assert_eq!(resource.description, Some("Jira user Test User".to_string()));
+    assert_eq!(
+        resource.description,
+        Some("Jira user Test User".to_string())
+    );
     assert_eq!(resource.mime_type, "application/json");
 
     let annotations = resource.annotations.unwrap();
@@ -646,7 +649,7 @@ fn create_sample_board() -> Board {
 // Helper function to create a sample sprint for testing
 fn create_sample_sprint() -> Sprint {
     use time::OffsetDateTime;
-    
+
     Sprint {
         id: 100,
         self_link: "https://jira.example.com/rest/agile/1.0/sprint/100".to_string(),

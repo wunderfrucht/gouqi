@@ -87,38 +87,47 @@ async fn demonstrate_async_mcp_operations(_jira: &Jira) -> Result<(), Box<dyn st
 
     println!("\n3. Extended Entity MCP Support:");
     println!("   New in this version - convert additional entities to MCP resources:");
-    
+
     // Demonstrate User entity conversion
     let example_user_resources = simulate_user_list_to_mcp().await;
     println!("   Users: {} MCP resources", example_user_resources.len());
     for resource in &example_user_resources {
         println!("     - {} ({})", resource.name, resource.uri);
     }
-    
+
     // Demonstrate Version entity conversion
     let example_version_resources = simulate_version_list_to_mcp().await;
-    println!("   Versions: {} MCP resources", example_version_resources.len());
+    println!(
+        "   Versions: {} MCP resources",
+        example_version_resources.len()
+    );
     for resource in &example_version_resources {
         println!("     - {} ({})", resource.name, resource.uri);
     }
-    
+
     // Demonstrate Board entity conversion
     let example_board_resources = simulate_board_list_to_mcp().await;
     println!("   Boards: {} MCP resources", example_board_resources.len());
     for resource in &example_board_resources {
         println!("     - {} ({})", resource.name, resource.uri);
     }
-    
+
     // Demonstrate Sprint entity conversion
     let example_sprint_resources = simulate_sprint_list_to_mcp().await;
-    println!("   Sprints: {} MCP resources", example_sprint_resources.len());
+    println!(
+        "   Sprints: {} MCP resources",
+        example_sprint_resources.len()
+    );
     for resource in &example_sprint_resources {
         println!("     - {} ({})", resource.name, resource.uri);
     }
-    
+
     // Demonstrate Component entity conversion
     let example_component_resources = simulate_component_list_to_mcp().await;
-    println!("   Components: {} MCP resources", example_component_resources.len());
+    println!(
+        "   Components: {} MCP resources",
+        example_component_resources.len()
+    );
     for resource in &example_component_resources {
         println!("     - {} ({})", resource.name, resource.uri);
     }
@@ -320,7 +329,7 @@ async fn simulate_concurrent_processing(
 #[cfg(feature = "async")]
 async fn simulate_user_list_to_mcp() -> Vec<MCPResource> {
     tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
-    
+
     vec![
         MCPResource {
             uri: uri::user_uri("john.doe"),
@@ -330,8 +339,14 @@ async fn simulate_user_list_to_mcp() -> Vec<MCPResource> {
             annotations: Some({
                 let mut annotations = HashMap::new();
                 annotations.insert("active".to_string(), serde_json::json!(true));
-                annotations.insert("email".to_string(), serde_json::json!("john.doe@example.com"));
-                annotations.insert("timezone".to_string(), serde_json::json!("America/New_York"));
+                annotations.insert(
+                    "email".to_string(),
+                    serde_json::json!("john.doe@example.com"),
+                );
+                annotations.insert(
+                    "timezone".to_string(),
+                    serde_json::json!("America/New_York"),
+                );
                 annotations
             }),
         },
@@ -343,7 +358,10 @@ async fn simulate_user_list_to_mcp() -> Vec<MCPResource> {
             annotations: Some({
                 let mut annotations = HashMap::new();
                 annotations.insert("active".to_string(), serde_json::json!(true));
-                annotations.insert("email".to_string(), serde_json::json!("jane.smith@example.com"));
+                annotations.insert(
+                    "email".to_string(),
+                    serde_json::json!("jane.smith@example.com"),
+                );
                 annotations.insert("timezone".to_string(), serde_json::json!("UTC"));
                 annotations
             }),
@@ -354,7 +372,7 @@ async fn simulate_user_list_to_mcp() -> Vec<MCPResource> {
 #[cfg(feature = "async")]
 async fn simulate_version_list_to_mcp() -> Vec<MCPResource> {
     tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
-    
+
     vec![
         MCPResource {
             uri: uri::version_uri("10001"),
@@ -387,7 +405,7 @@ async fn simulate_version_list_to_mcp() -> Vec<MCPResource> {
 #[cfg(feature = "async")]
 async fn simulate_board_list_to_mcp() -> Vec<MCPResource> {
     tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
-    
+
     vec![
         MCPResource {
             uri: uri::board_uri("1"),
@@ -419,7 +437,7 @@ async fn simulate_board_list_to_mcp() -> Vec<MCPResource> {
 #[cfg(feature = "async")]
 async fn simulate_sprint_list_to_mcp() -> Vec<MCPResource> {
     tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
-    
+
     vec![
         MCPResource {
             uri: uri::sprint_uri("1"),
@@ -430,8 +448,14 @@ async fn simulate_sprint_list_to_mcp() -> Vec<MCPResource> {
                 let mut annotations = HashMap::new();
                 annotations.insert("state".to_string(), serde_json::json!("active"));
                 annotations.insert("origin_board_id".to_string(), serde_json::json!(1));
-                annotations.insert("start_date".to_string(), serde_json::json!("2024-01-01T00:00:00Z"));
-                annotations.insert("end_date".to_string(), serde_json::json!("2024-01-14T23:59:59Z"));
+                annotations.insert(
+                    "start_date".to_string(),
+                    serde_json::json!("2024-01-01T00:00:00Z"),
+                );
+                annotations.insert(
+                    "end_date".to_string(),
+                    serde_json::json!("2024-01-14T23:59:59Z"),
+                );
                 annotations
             }),
         },
@@ -453,7 +477,7 @@ async fn simulate_sprint_list_to_mcp() -> Vec<MCPResource> {
 #[cfg(feature = "async")]
 async fn simulate_component_list_to_mcp() -> Vec<MCPResource> {
     tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
-    
+
     vec![
         MCPResource {
             uri: uri::component_uri("10001"),
@@ -561,7 +585,7 @@ async fn example_async_mcp_handler(
                     message: "Missing required parameter: issue_key".to_string(),
                     data: None,
                 })?;
-            
+
             let transition_id = input
                 .get("transition_id")
                 .and_then(|v| v.as_str())
@@ -605,7 +629,7 @@ async fn example_async_mcp_handler(
                     message: "Missing required parameter: issue_key".to_string(),
                     data: None,
                 })?;
-            
+
             let filename = input
                 .get("filename")
                 .and_then(|v| v.as_str())
@@ -632,7 +656,7 @@ async fn example_async_mcp_handler(
                     message: "Missing required parameter: project_key".to_string(),
                     data: None,
                 })?;
-            
+
             let name = input
                 .get("name")
                 .and_then(|v| v.as_str())
@@ -757,19 +781,19 @@ mod tests {
         let users = simulate_user_list_to_mcp().await;
         assert_eq!(users.len(), 2);
         assert!(users[0].name.contains("John Doe"));
-        
+
         let versions = simulate_version_list_to_mcp().await;
         assert_eq!(versions.len(), 2);
         assert!(versions[0].name.contains("v1.0.0"));
-        
+
         let boards = simulate_board_list_to_mcp().await;
         assert_eq!(boards.len(), 2);
         assert!(boards[0].name.contains("Kanban"));
-        
+
         let sprints = simulate_sprint_list_to_mcp().await;
         assert_eq!(sprints.len(), 2);
         assert!(sprints[0].name.contains("Sprint 1"));
-        
+
         let components = simulate_component_list_to_mcp().await;
         assert_eq!(components.len(), 2);
         assert!(components[0].name.contains("Frontend"));

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
 
-use crate::{Error, Issue, Project, User, Version, Board, Sprint, ProjectComponent};
+use crate::{Board, Error, Issue, Project, ProjectComponent, Sprint, User, Version};
 
 /// URI schemes for different Jira resources
 pub const JIRA_ISSUE_SCHEME: &str = "jira://issue/";
@@ -705,19 +705,19 @@ impl ToMCPResource for User {
     fn to_mcp_resource(&self, _base_uri: &str) -> MCPResource {
         let mut annotations = HashMap::new();
         annotations.insert("active".to_string(), serde_json::json!(self.active));
-        
+
         if let Some(email) = &self.email_address {
             annotations.insert("email".to_string(), serde_json::json!(email));
         }
-        
+
         if let Some(key) = &self.key {
             annotations.insert("key".to_string(), serde_json::json!(key));
         }
-        
+
         if let Some(name) = &self.name {
             annotations.insert("username".to_string(), serde_json::json!(name));
         }
-        
+
         if let Some(timezone) = &self.timezone {
             annotations.insert("timezone".to_string(), serde_json::json!(timezone));
         }
@@ -739,7 +739,7 @@ impl ToMCPResource for Version {
         annotations.insert("project_id".to_string(), serde_json::json!(self.project_id));
         annotations.insert("released".to_string(), serde_json::json!(self.released));
         annotations.insert("archived".to_string(), serde_json::json!(self.archived));
-        
+
         let status = if self.archived {
             "Archived"
         } else if self.released {
@@ -765,7 +765,7 @@ impl ToMCPResource for Board {
         let mut annotations = HashMap::new();
         annotations.insert("board_type".to_string(), serde_json::json!(self.type_name));
         annotations.insert("board_id".to_string(), serde_json::json!(self.id));
-        
+
         if let Some(location) = &self.location {
             if let Some(project_id) = location.project_id {
                 annotations.insert("project_id".to_string(), serde_json::json!(project_id));
@@ -790,29 +790,41 @@ impl ToMCPResource for Sprint {
     fn to_mcp_resource(&self, _base_uri: &str) -> MCPResource {
         let mut annotations = HashMap::new();
         annotations.insert("sprint_id".to_string(), serde_json::json!(self.id));
-        
+
         if let Some(state) = &self.state {
             annotations.insert("state".to_string(), serde_json::json!(state));
         }
-        
+
         if let Some(start_date) = &self.start_date {
-            annotations.insert("start_date".to_string(), serde_json::json!(start_date.to_string()));
+            annotations.insert(
+                "start_date".to_string(),
+                serde_json::json!(start_date.to_string()),
+            );
         }
-        
+
         if let Some(end_date) = &self.end_date {
-            annotations.insert("end_date".to_string(), serde_json::json!(end_date.to_string()));
+            annotations.insert(
+                "end_date".to_string(),
+                serde_json::json!(end_date.to_string()),
+            );
         }
-        
+
         if let Some(complete_date) = &self.complete_date {
-            annotations.insert("complete_date".to_string(), serde_json::json!(complete_date.to_string()));
+            annotations.insert(
+                "complete_date".to_string(),
+                serde_json::json!(complete_date.to_string()),
+            );
         }
-        
+
         if let Some(board_id) = &self.origin_board_id {
             annotations.insert("origin_board_id".to_string(), serde_json::json!(board_id));
         }
 
-        let description = format!("Sprint: {} ({})", self.name, 
-            self.state.as_ref().unwrap_or(&"UNKNOWN".to_string()));
+        let description = format!(
+            "Sprint: {} ({})",
+            self.name,
+            self.state.as_ref().unwrap_or(&"UNKNOWN".to_string())
+        );
 
         MCPResource {
             uri: format!("jira://sprint/{}", self.id),
@@ -833,7 +845,9 @@ impl ToMCPResource for ProjectComponent {
         MCPResource {
             uri: uri::component_uri(&self.id),
             name: format!("Component: {}", self.name),
-            description: self.description.clone()
+            description: self
+                .description
+                .clone()
                 .or_else(|| Some(format!("Project component: {}", self.name))),
             mime_type: "application/json".to_string(),
             annotations: Some(annotations),
