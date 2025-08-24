@@ -42,7 +42,7 @@ fn test_concurrent_builder_creation() {
             // Create multiple builders in each thread
             for i in 0..50 {
                 let _builder = JiraBuilder::new()
-                    .host(&format!(
+                    .host(format!(
                         "https://thread{}-test{}.atlassian.net",
                         thread_id, i
                     ))
@@ -339,7 +339,7 @@ fn test_concurrent_custom_field_creation() {
                 );
 
                 let _builder = JiraBuilder::new()
-                    .host(&format!("https://thread{}.atlassian.net", thread_id))
+                    .host(format!("https://thread{}.atlassian.net", thread_id))
                     .credentials(Credentials::Basic("user".to_string(), "pass".to_string()))
                     .custom_fields(custom_fields);
 

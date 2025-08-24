@@ -445,7 +445,7 @@ fn test_memory_pressure_scenarios() {
             }
 
             JiraBuilder::new()
-                .host(&format!("https://test{}.atlassian.net", i))
+                .host(format!("https://test{}.atlassian.net", i))
                 .credentials(Credentials::Basic(
                     format!("user{}", i),
                     format!("pass{}", i),
