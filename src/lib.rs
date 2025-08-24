@@ -65,6 +65,8 @@ pub mod sync;
 pub mod attachments;
 mod builder;
 pub mod components;
+pub mod config;
+pub mod env;
 mod errors;
 pub mod issues;
 pub mod mcp;
@@ -78,6 +80,7 @@ pub mod versions;
 pub use crate::attachments::*;
 pub use crate::builder::*;
 pub use crate::components::*;
+pub use crate::config::*;
 pub use crate::core::*; // Re-export all core types
 pub use crate::errors::*;
 pub use crate::issues::*;

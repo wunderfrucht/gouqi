@@ -545,6 +545,28 @@ pub mod error {
                     "type": "parse_error"
                 })),
             },
+            Error::ConfigError { message } => MCPError {
+                code: 500,
+                message: format!("Configuration error: {}", message),
+                data: Some(serde_json::json!({
+                    "type": "config_error"
+                })),
+            },
+            Error::FieldSchemaError { field, message } => MCPError {
+                code: 400,
+                message: format!("Field schema error for '{}': {}", field, message),
+                data: Some(serde_json::json!({
+                    "type": "field_schema_error",
+                    "field": field
+                })),
+            },
+            Error::BuilderError { message } => MCPError {
+                code: 500,
+                message: format!("Builder error: {}", message),
+                data: Some(serde_json::json!({
+                    "type": "builder_error"
+                })),
+            },
         }
     }
 }

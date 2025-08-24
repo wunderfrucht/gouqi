@@ -17,6 +17,8 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 skeptic = "0.13"
 mockito = "1.7.0"
 tokio = { version = "1", features = ["rt", "time", "macros", "test-util"] }
+tempfile = "3.0"
+criterion = { version = "0.5", features = ["html_reports"] }
 
 [build-dependencies]
 skeptic = "0.13"
@@ -35,10 +37,19 @@ time = { version = "0.3", features = ['serde-well-known', 'macros'] }
 thiserror = "2.0"
 tokio = { version = "1", features = ["rt", "time", "macros", "rt-multi-thread"], optional = true }
 futures = { version = "0.3", optional = true }
+humantime-serde = "1.1"
+serde_yaml = { version = "0.9", optional = true }
+toml = { version = "0.8", optional = true }
+humantime = { version = "2.1", optional = true }
 
 [features]
 default = []
 async = ["tokio", "futures"]
+yaml = ["dep:serde_yaml"]
+toml-support = ["dep:toml"]
+humantime-support = ["dep:humantime"]
+config-files = ["yaml", "toml-support"]
+full = ["async", "config-files", "humantime-support"]
 
 [package.metadata.clippy]
 warn = ["missing_panics_doc"]
@@ -47,3 +58,8 @@ warn = ["missing_panics_doc"]
 # This ensures docs.rs generates documentation with all features enabled
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+
+[[bench]]
+name = "configuration_benchmarks"
+harness = false

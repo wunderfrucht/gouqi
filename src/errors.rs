@@ -32,4 +32,13 @@ pub enum Error {
     /// URI parse error
     #[error("Could not connect to Jira: {0}")]
     ParseError(#[from] url::ParseError),
+    /// Configuration error
+    #[error("Configuration error: {message}")]
+    ConfigError { message: String },
+    /// Field schema validation error
+    #[error("Field schema error for '{field}': {message}")]
+    FieldSchemaError { field: String, message: String },
+    /// Builder validation error
+    #[error("Builder validation failed: {message}")]
+    BuilderError { message: String },
 }
