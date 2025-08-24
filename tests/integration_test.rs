@@ -303,7 +303,7 @@ fn test_configuration_performance() {
     for i in 0..100 {
         let _config = GouqiConfig::default();
         let _builder = JiraBuilder::new()
-            .host(&format!("https://test{}.atlassian.net", i))
+            .host(format!("https://test{}.atlassian.net", i))
             .credentials(Credentials::Basic("user".to_string(), "pass".to_string()))
             .timeout(Duration::from_secs(30))
             .retry_policy(3, Duration::from_millis(100), Duration::from_secs(10));
@@ -341,7 +341,7 @@ fn test_concurrent_configuration_creation() {
         let handle = thread::spawn(move || {
             for i in 0..10 {
                 let _builder = JiraBuilder::new()
-                    .host(&format!(
+                    .host(format!(
                         "https://thread{}-test{}.atlassian.net",
                         thread_id, i
                     ))
