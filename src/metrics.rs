@@ -22,7 +22,7 @@ use tracing::{debug, info};
 
 /// Global metrics instance
 #[cfg(feature = "metrics")]
-pub static METRICS: Lazy<GlobalMetrics> = Lazy::new(|| GlobalMetrics::new());
+pub static METRICS: Lazy<GlobalMetrics> = Lazy::new(GlobalMetrics::new);
 
 /// Metrics collection interface
 pub trait MetricsCollector: Send + Sync {
@@ -47,7 +47,7 @@ pub trait MetricsCollector: Send + Sync {
 
 /// Core metrics implementation
 #[cfg(feature = "metrics")]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct GlobalMetrics {
     request_count: AtomicU64,
     error_count: AtomicU64,
@@ -61,14 +61,7 @@ pub struct GlobalMetrics {
 impl GlobalMetrics {
     /// Create a new metrics instance
     pub fn new() -> Self {
-        Self {
-            request_count: AtomicU64::new(0),
-            error_count: AtomicU64::new(0),
-            total_duration_ms: AtomicU64::new(0),
-            cache_hits: AtomicU64::new(0),
-            cache_misses: AtomicU64::new(0),
-            endpoint_metrics: RwLock::new(HashMap::new()),
-        }
+        Self::default()
     }
 
     /// Get current metrics snapshot

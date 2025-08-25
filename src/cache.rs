@@ -277,10 +277,7 @@ pub fn generate_cache_key(endpoint: &str, params: &str) -> String {
     full_key.hash(&mut hasher);
 
     // Create a readable cache key
-    let endpoint_safe = endpoint
-        .replace('/', "_")
-        .replace('?', "_")
-        .replace('&', "_");
+    let endpoint_safe = endpoint.replace(['/', '?', '&'], "_");
     format!("gouqi:{}:{:x}", endpoint_safe, hasher.finish())
 }
 

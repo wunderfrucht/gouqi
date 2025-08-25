@@ -363,7 +363,7 @@ mod tests {
         let obs = ObservabilitySystem::new();
         let health = obs.health_status();
         assert_eq!(health.status, "healthy");
-        assert!(health.uptime >= 0);
+        assert!(health.uptime < u64::MAX);
     }
 
     #[test]

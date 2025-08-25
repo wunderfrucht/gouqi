@@ -410,9 +410,9 @@ impl Jira {
     where
         D: DeserializeOwned,
     {
-        let ctx = RequestContext::new(&method.to_string(), endpoint);
+        let ctx = RequestContext::new(method.as_ref(), endpoint);
         let _span = ctx.create_span().entered();
-        let method_str = method.to_string();
+        let _method_str = method.to_string();
 
         // Check cache first for GET requests
         #[cfg(feature = "cache")]

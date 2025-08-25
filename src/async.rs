@@ -348,7 +348,7 @@ impl Jira {
     where
         D: DeserializeOwned,
     {
-        let ctx = RequestContext::new(&method.to_string(), endpoint);
+        let ctx = RequestContext::new(method.as_ref(), endpoint);
         let span = ctx.create_span();
         let method_str = method.to_string();
 
