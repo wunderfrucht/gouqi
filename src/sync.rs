@@ -413,7 +413,7 @@ impl Jira {
         let ctx = RequestContext::new(&method.to_string(), endpoint);
         let _span = ctx.create_span().entered();
         let method_str = method.to_string();
-        
+
         // Check cache first for GET requests
         #[cfg(feature = "cache")]
         if method == Method::GET {
@@ -427,7 +427,7 @@ impl Jira {
                 return Ok(cached_response);
             }
         }
-        
+
         let url = self.core.build_url(api_name, endpoint)?;
         debug!(
             correlation_id = %ctx.correlation_id,
@@ -446,7 +446,7 @@ impl Jira {
         if let Some(body) = body {
             req = req.body(body);
         }
-        
+
         debug!(
             correlation_id = %ctx.correlation_id,
             "Sending request"
@@ -455,10 +455,10 @@ impl Jira {
         let result = (|| {
             let mut res = req.send()?;
             let status = res.status();
-            
+
             let mut response_body = String::new();
             res.read_to_string(&mut response_body)?;
-            
+
             debug!(
                 correlation_id = %ctx.correlation_id,
                 status = %status,
@@ -467,19 +467,20 @@ impl Jira {
             );
 
             let response = self.core.process_response(status, &response_body)?;
-            
+
             // Cache successful GET responses by storing the raw JSON
             #[cfg(feature = "cache")]
             if status.is_success() && method == Method::GET {
-                self.core.store_raw_response(&method_str, endpoint, &response_body);
+                self.core
+                    .store_raw_response(&method_str, endpoint, &response_body);
             }
-            
+
             Ok(response)
         })();
-        
+
         let success = result.is_ok();
         ctx.finish(success);
-        
+
         result
     }
 }

@@ -12,10 +12,10 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-#[cfg(feature = "metrics")]
-use crate::metrics::{MetricsCollector, MetricsSnapshot, METRICS};
 #[cfg(feature = "cache")]
 use crate::cache::{Cache, CacheStats};
+#[cfg(feature = "metrics")]
+use crate::metrics::{METRICS, MetricsCollector, MetricsSnapshot};
 
 /// Central observability coordinator
 pub struct ObservabilitySystem {
@@ -84,12 +84,12 @@ impl ObservabilitySystem {
         {
             let snapshot = self.metrics.get_snapshot();
             health.request_count = snapshot.request_count;
-            
+
             // Mark unhealthy if error rate is too high
             if snapshot.success_rate < 90.0 && snapshot.request_count > 100 {
                 health.status = "degraded".to_string();
             }
-            
+
             if snapshot.success_rate < 50.0 && snapshot.request_count > 50 {
                 health.status = "unhealthy".to_string();
             }
@@ -121,8 +121,9 @@ impl ObservabilitySystem {
     /// Record a request for observability tracking
     #[cfg(feature = "metrics")]
     pub fn record_request(&self, method: &str, endpoint: &str, duration: Duration, success: bool) {
-        self.metrics.record_request(method, endpoint, duration, success);
-        
+        self.metrics
+            .record_request(method, endpoint, duration, success);
+
         if !success {
             self.health_checker.record_error();
         } else {
@@ -144,9 +145,9 @@ impl ObservabilitySystem {
     pub fn reset(&self) {
         #[cfg(feature = "metrics")]
         self.metrics.reset();
-        
+
         self.health_checker.reset();
-        
+
         info!("Observability system reset");
     }
 
@@ -165,7 +166,7 @@ impl ObservabilitySystem {
                 avg_response_time: snapshot.avg_duration_ms,
             }
         }
-        
+
         #[cfg(not(feature = "metrics"))]
         MetricsHealth {
             enabled: false,
@@ -191,7 +192,7 @@ impl ObservabilitySystem {
                 memory_usage: stats.total_size_bytes,
             };
         }
-        
+
         CacheHealth {
             enabled: false,
             total_entries: 0,
@@ -205,8 +206,8 @@ impl ObservabilitySystem {
         // Basic memory usage estimation
         // In a real implementation, you'd use system APIs to get actual memory usage
         MemoryUsage {
-            total_mb: 0, // Would be filled by system info
-            used_mb: 0,  // Would be filled by system info
+            total_mb: 0,     // Would be filled by system info
+            used_mb: 0,      // Would be filled by system info
             available_mb: 0, // Would be filled by system info
         }
     }
@@ -234,16 +235,20 @@ impl HealthChecker {
     }
 
     fn record_error(&self) {
-        self.error_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.error_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 
     fn record_success(&self) {
-        self.success_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.success_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 
     fn reset(&self) {
-        self.error_count.store(0, std::sync::atomic::Ordering::Relaxed);
-        self.success_count.store(0, std::sync::atomic::Ordering::Relaxed);
+        self.error_count
+            .store(0, std::sync::atomic::Ordering::Relaxed);
+        self.success_count
+            .store(0, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
@@ -365,10 +370,10 @@ mod tests {
     fn test_health_status_serialization() {
         let obs = ObservabilitySystem::new();
         let health = obs.health_status();
-        
+
         let json = serde_json::to_string(&health).unwrap();
         let deserialized: HealthStatus = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(health.status, deserialized.status);
     }
 
@@ -376,10 +381,13 @@ mod tests {
     fn test_observability_report() {
         let obs = ObservabilitySystem::new();
         let report = obs.get_observability_report();
-        
+
         assert!(report.timestamp > 0);
         assert_eq!(report.health.status, "healthy");
-        assert_eq!(report.system_info.library_version, env!("CARGO_PKG_VERSION"));
+        assert_eq!(
+            report.system_info.library_version,
+            env!("CARGO_PKG_VERSION")
+        );
     }
 
     #[test]

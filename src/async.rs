@@ -43,7 +43,7 @@
 //! - Bearer token: `Credentials::Bearer(token)`
 //! - Cookie-based: `Credentials::Cookie(jsessionid)`
 
-use tracing::{debug, Instrument};
+use tracing::{Instrument, debug};
 
 use reqwest::header::CONTENT_TYPE;
 use reqwest::{Client, Method};
@@ -351,7 +351,7 @@ impl Jira {
         let ctx = RequestContext::new(&method.to_string(), endpoint);
         let span = ctx.create_span();
         let method_str = method.to_string();
-        
+
         async move {
             // Check cache first for GET requests
             #[cfg(feature = "cache")]
@@ -366,7 +366,7 @@ impl Jira {
                     return Ok(cached_response);
                 }
             }
-            
+
             let url = self.core.build_url(api_name, endpoint)?;
             debug!(
                 correlation_id = %ctx.correlation_id,
@@ -385,7 +385,7 @@ impl Jira {
             if let Some(body) = body {
                 req = req.body(body);
             }
-            
+
             debug!(
                 correlation_id = %ctx.correlation_id,
                 "Sending request"
@@ -395,7 +395,7 @@ impl Jira {
                 let res = req.send().await?;
                 let status = res.status();
                 let response_body = res.text().await?;
-                
+
                 debug!(
                     correlation_id = %ctx.correlation_id,
                     status = %status,
@@ -404,19 +404,21 @@ impl Jira {
                 );
 
                 let response = self.core.process_response(status, &response_body)?;
-                
+
                 // Cache successful GET responses by storing the raw JSON
                 #[cfg(feature = "cache")]
                 if status.is_success() && method == Method::GET {
-                    self.core.store_raw_response(&method_str, endpoint, &response_body);
+                    self.core
+                        .store_raw_response(&method_str, endpoint, &response_body);
                 }
-                
+
                 Ok(response)
-            }.await;
-            
+            }
+            .await;
+
             let success = result.is_ok();
             ctx.finish(success);
-            
+
             result
         }
         .instrument(span)

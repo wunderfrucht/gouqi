@@ -1,11 +1,11 @@
 //! Core shared functionality between sync and async implementations
 
+#[cfg(feature = "cache")]
+use std::sync::Arc;
 #[cfg(feature = "metrics")]
 use std::time::Instant;
 #[cfg(feature = "uuid")]
 use uuid::Uuid;
-#[cfg(feature = "cache")]
-use std::sync::Arc;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -13,10 +13,10 @@ use tracing::{debug, info_span};
 use url::Url;
 
 use crate::Error;
-#[cfg(feature = "metrics")]
-use crate::metrics::{METRICS, MetricsCollector};
 #[cfg(feature = "cache")]
 use crate::cache::{Cache, MemoryCache, RuntimeCacheConfig, generate_cache_key};
+#[cfg(feature = "metrics")]
+use crate::metrics::{METRICS, MetricsCollector};
 
 /// Type alias for Result with the crate's Error type
 pub type Result<T> = std::result::Result<T, Error>;
@@ -87,10 +87,13 @@ impl RequestContext {
         #[cfg(feature = "uuid")]
         let correlation_id = Uuid::new_v4().to_string();
         #[cfg(not(feature = "uuid"))]
-        let correlation_id = format!("req_{}", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos());
+        let correlation_id = format!(
+            "req_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
 
         Self {
             correlation_id,
@@ -107,12 +110,12 @@ impl RequestContext {
         {
             let duration = self.start_time.elapsed();
             METRICS.record_request(&self.method, &self.endpoint, duration, success);
-            
+
             if !success {
                 METRICS.record_error("request_failed");
             }
         }
-        
+
         debug!(
             correlation_id = %self.correlation_id,
             method = %self.method,
@@ -140,8 +143,8 @@ impl ClientCore {
         H: Into<String>,
     {
         match Url::parse(&host.into()) {
-            Ok(host) => Ok(ClientCore { 
-                host, 
+            Ok(host) => Ok(ClientCore {
+                host,
                 credentials,
                 #[cfg(feature = "cache")]
                 cache: Arc::new(MemoryCache::new(std::time::Duration::from_secs(300))),
@@ -155,17 +158,17 @@ impl ClientCore {
     /// Creates a new client core with custom cache configuration
     #[cfg(feature = "cache")]
     pub fn with_cache<H>(
-        host: H, 
-        credentials: Credentials, 
+        host: H,
+        credentials: Credentials,
         cache: Arc<dyn Cache>,
-        cache_config: RuntimeCacheConfig
+        cache_config: RuntimeCacheConfig,
     ) -> Result<Self>
     where
         H: Into<String>,
     {
         match Url::parse(&host.into()) {
-            Ok(host) => Ok(ClientCore { 
-                host, 
+            Ok(host) => Ok(ClientCore {
+                host,
                 credentials,
                 cache,
                 cache_config,
@@ -227,7 +230,11 @@ impl ClientCore {
             // The cached data is raw JSON bytes
             match std::str::from_utf8(&cached_data) {
                 Ok(json_str) => {
-                    let processed_json = if json_str.is_empty() { "null" } else { json_str };
+                    let processed_json = if json_str.is_empty() {
+                        "null"
+                    } else {
+                        json_str
+                    };
                     match serde_json::from_str::<D>(processed_json) {
                         Ok(result) => {
                             debug!(cache_key = %cache_key, "Cache hit");
@@ -259,10 +266,11 @@ impl ClientCore {
 
         let cache_key = generate_cache_key(endpoint, "");
         let strategy = self.cache_config.strategy_for_endpoint(endpoint);
-        
-        self.cache.set(&cache_key, raw_json.as_bytes().to_vec(), strategy.ttl);
+
+        self.cache
+            .set(&cache_key, raw_json.as_bytes().to_vec(), strategy.ttl);
         debug!(
-            cache_key = %cache_key, 
+            cache_key = %cache_key,
             ttl_secs = strategy.ttl.as_secs(),
             size_bytes = raw_json.len(),
             "Raw JSON response cached"

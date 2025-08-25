@@ -4,14 +4,14 @@
 //! to improve performance and reduce API call frequency.
 
 #[cfg(feature = "cache")]
-use std::time::{Duration, Instant};
-#[cfg(feature = "cache")]
 use std::collections::HashMap;
+#[cfg(feature = "cache")]
+use std::time::{Duration, Instant};
 
 #[cfg(feature = "cache")]
 use parking_lot::RwLock;
 #[cfg(feature = "cache")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
 #[cfg(feature = "cache")]
@@ -21,19 +21,19 @@ use crate::metrics::{METRICS, MetricsCollector};
 pub trait Cache: Send + Sync {
     /// Get a cached value by key
     fn get(&self, key: &str) -> Option<Vec<u8>>;
-    
+
     /// Store a value in cache with TTL
     fn set(&self, key: &str, value: Vec<u8>, ttl: Duration);
-    
+
     /// Delete a specific cache entry
     fn delete(&self, key: &str);
-    
+
     /// Clear all cache entries
     fn clear(&self);
-    
+
     /// Get cache statistics
     fn stats(&self) -> CacheStats;
-    
+
     /// Cleanup expired entries (for maintenance)
     fn cleanup_expired(&self);
 }
@@ -66,7 +66,7 @@ impl MemoryCache {
             max_entries: 1000, // Default limit
         }
     }
-    
+
     /// Create a new memory cache with capacity and TTL limits
     pub fn with_capacity(capacity: usize, default_ttl: Duration) -> Self {
         Self {
@@ -75,30 +75,31 @@ impl MemoryCache {
             max_entries: capacity,
         }
     }
-    
+
     /// Get the default TTL
     pub fn default_ttl(&self) -> Duration {
         self.default_ttl
     }
-    
+
     /// Check if cache has reached capacity
     fn is_at_capacity(&self) -> bool {
         let store = self.store.read();
         store.len() >= self.max_entries
     }
-    
+
     /// Evict least recently used entry to make room
     fn evict_lru(&self) {
         let mut store = self.store.write();
         if store.is_empty() {
             return;
         }
-        
+
         // Find the entry with the oldest access time
-        let oldest_key = store.iter()
+        let oldest_key = store
+            .iter()
             .min_by_key(|(_, entry)| entry.created_at)
             .map(|(key, _)| key.clone());
-            
+
         if let Some(key) = oldest_key {
             store.remove(&key);
             debug!(cache_key = %key, "Evicted LRU cache entry");
@@ -110,7 +111,7 @@ impl MemoryCache {
 impl Cache for MemoryCache {
     fn get(&self, key: &str) -> Option<Vec<u8>> {
         let mut store = self.store.write();
-        
+
         if let Some(entry) = store.get_mut(key) {
             if entry.expires_at > Instant::now() {
                 entry.access_count += 1;
@@ -130,16 +131,16 @@ impl Cache for MemoryCache {
             None
         }
     }
-    
+
     fn set(&self, key: &str, value: Vec<u8>, ttl: Duration) {
         let now = Instant::now();
         let expires_at = now + ttl;
-        
+
         // If at capacity, evict LRU entry first
         if self.is_at_capacity() {
             self.evict_lru();
         }
-        
+
         let value_size = value.len();
         let entry = CacheEntry {
             data: value,
@@ -147,10 +148,10 @@ impl Cache for MemoryCache {
             created_at: now,
             access_count: 0,
         };
-        
+
         let mut store = self.store.write();
         store.insert(key.to_string(), entry);
-        
+
         debug!(
             cache_key = key,
             ttl_secs = ttl.as_secs(),
@@ -158,32 +159,31 @@ impl Cache for MemoryCache {
             "Cache entry stored"
         );
     }
-    
+
     fn delete(&self, key: &str) {
         let mut store = self.store.write();
         if store.remove(key).is_some() {
             debug!(cache_key = key, "Cache entry deleted");
         }
     }
-    
+
     fn clear(&self) {
         let mut store = self.store.write();
         let count = store.len();
         store.clear();
         info!(entries_cleared = count, "Cache cleared");
     }
-    
+
     fn stats(&self) -> CacheStats {
         let store = self.store.read();
         let now = Instant::now();
         let total_entries = store.len();
-        let expired_entries = store.values()
+        let expired_entries = store
+            .values()
             .filter(|entry| entry.expires_at <= now)
             .count();
-        let total_size_bytes = store.values()
-            .map(|entry| entry.data.len())
-            .sum();
-        
+        let total_size_bytes = store.values().map(|entry| entry.data.len()).sum();
+
         CacheStats {
             total_entries,
             active_entries: total_entries - expired_entries,
@@ -192,12 +192,12 @@ impl Cache for MemoryCache {
             max_capacity: self.max_entries,
         }
     }
-    
+
     fn cleanup_expired(&self) {
         let now = Instant::now();
         let mut store = self.store.write();
         let original_count = store.len();
-        
+
         store.retain(|key, entry| {
             let is_valid = entry.expires_at > now;
             if !is_valid {
@@ -205,10 +205,13 @@ impl Cache for MemoryCache {
             }
             is_valid
         });
-        
+
         let removed_count = original_count - store.len();
         if removed_count > 0 {
-            info!(removed_entries = removed_count, "Cleaned up expired cache entries");
+            info!(
+                removed_entries = removed_count,
+                "Cleaned up expired cache entries"
+            );
         }
     }
 }
@@ -239,7 +242,7 @@ impl CacheStats {
             max_capacity: 0,
         }
     }
-    
+
     /// Calculate cache utilization as a percentage
     pub fn utilization_percent(&self) -> f64 {
         if self.max_capacity == 0 {
@@ -248,7 +251,7 @@ impl CacheStats {
             (self.active_entries as f64 / self.max_capacity as f64) * 100.0
         }
     }
-    
+
     /// Calculate average entry size in bytes
     pub fn avg_entry_size_bytes(&self) -> f64 {
         if self.active_entries == 0 {
@@ -263,18 +266,21 @@ impl CacheStats {
 pub fn generate_cache_key(endpoint: &str, params: &str) -> String {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
-    
+
     let full_key = if params.is_empty() {
         endpoint.to_string()
     } else {
         format!("{}?{}", endpoint, params)
     };
-    
+
     let mut hasher = DefaultHasher::new();
     full_key.hash(&mut hasher);
-    
+
     // Create a readable cache key
-    let endpoint_safe = endpoint.replace('/', "_").replace('?', "_").replace('&', "_");
+    let endpoint_safe = endpoint
+        .replace('/', "_")
+        .replace('?', "_")
+        .replace('&', "_");
     format!("gouqi:{}:{:x}", endpoint_safe, hasher.finish())
 }
 
@@ -285,7 +291,7 @@ pub fn jira_cache_key(operation: &str, resource_id: &str, params: &str) -> Strin
     } else {
         format!("{}/{}", operation, resource_id)
     };
-    
+
     generate_cache_key(&base_key, params)
 }
 
@@ -318,32 +324,44 @@ pub struct RuntimeCacheStrategy {
 impl Default for RuntimeCacheConfig {
     fn default() -> Self {
         let mut strategies = HashMap::new();
-        
+
         // Configure common Jira endpoints with appropriate cache strategies
-        strategies.insert("issues".to_string(), RuntimeCacheStrategy {
-            ttl: Duration::from_secs(300), // 5 minutes for issues
-            cache_errors: false,
-            use_etag: true,
-        });
-        
-        strategies.insert("projects".to_string(), RuntimeCacheStrategy {
-            ttl: Duration::from_secs(3600), // 1 hour for projects (less frequent changes)
-            cache_errors: false,
-            use_etag: true,
-        });
-        
-        strategies.insert("users".to_string(), RuntimeCacheStrategy {
-            ttl: Duration::from_secs(1800), // 30 minutes for users
-            cache_errors: false,
-            use_etag: false,
-        });
-        
-        strategies.insert("search".to_string(), RuntimeCacheStrategy {
-            ttl: Duration::from_secs(60), // 1 minute for search (results change frequently)
-            cache_errors: false,
-            use_etag: false,
-        });
-        
+        strategies.insert(
+            "issues".to_string(),
+            RuntimeCacheStrategy {
+                ttl: Duration::from_secs(300), // 5 minutes for issues
+                cache_errors: false,
+                use_etag: true,
+            },
+        );
+
+        strategies.insert(
+            "projects".to_string(),
+            RuntimeCacheStrategy {
+                ttl: Duration::from_secs(3600), // 1 hour for projects (less frequent changes)
+                cache_errors: false,
+                use_etag: true,
+            },
+        );
+
+        strategies.insert(
+            "users".to_string(),
+            RuntimeCacheStrategy {
+                ttl: Duration::from_secs(1800), // 30 minutes for users
+                cache_errors: false,
+                use_etag: false,
+            },
+        );
+
+        strategies.insert(
+            "search".to_string(),
+            RuntimeCacheStrategy {
+                ttl: Duration::from_secs(60), // 1 minute for search (results change frequently)
+                cache_errors: false,
+                use_etag: false,
+            },
+        );
+
         Self {
             enabled: true,
             default_ttl: Duration::from_secs(300), // 5 minutes default
@@ -362,7 +380,7 @@ impl RuntimeCacheConfig {
                 return strategy.clone();
             }
         }
-        
+
         // Return default strategy
         RuntimeCacheStrategy {
             ttl: self.default_ttl,
@@ -370,7 +388,7 @@ impl RuntimeCacheConfig {
             use_etag: true,
         }
     }
-    
+
     /// Check if an endpoint should be cached
     pub fn should_cache_endpoint(&self, endpoint: &str) -> bool {
         self.enabled && !endpoint.contains("search") // Don't cache search by default
@@ -386,7 +404,7 @@ impl MemoryCache {
     pub fn new(_default_ttl: Duration) -> Self {
         Self
     }
-    
+
     pub fn with_capacity(_capacity: usize, _default_ttl: Duration) -> Self {
         Self
     }
@@ -394,10 +412,14 @@ impl MemoryCache {
 
 #[cfg(not(feature = "cache"))]
 impl Cache for MemoryCache {
-    fn get(&self, _key: &str) -> Option<Vec<u8>> { None }
+    fn get(&self, _key: &str) -> Option<Vec<u8>> {
+        None
+    }
     fn set(&self, _key: &str, _value: Vec<u8>, _ttl: Duration) {}
     fn delete(&self, _key: &str) {}
     fn clear(&self) {}
-    fn stats(&self) -> CacheStats { CacheStats::empty() }
+    fn stats(&self) -> CacheStats {
+        CacheStats::empty()
+    }
     fn cleanup_expired(&self) {}
 }
