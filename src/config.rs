@@ -236,7 +236,6 @@ impl Default for RateLimitingConfig {
     }
 }
 
-
 impl GouqiConfig {
     /// Load configuration from file
     ///
