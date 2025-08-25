@@ -9,7 +9,7 @@ use serde::de::DeserializeOwned;
 use crate::attachments::Attachments;
 use crate::boards::Boards;
 use crate::components::Components;
-use crate::core::ClientCore;
+use crate::core::{ClientCore, RequestContext};
 use crate::issues::Issues;
 use crate::projects::Projects;
 use crate::rep::Session;
@@ -211,6 +211,68 @@ impl Jira {
         self.get("auth", "/session")
     }
 
+    /// Clear all cached responses
+    ///
+    /// This method clears all cached API responses. Useful for forcing fresh data
+    /// or freeing up memory used by the cache.
+    #[cfg(feature = "cache")]
+    pub fn clear_cache(&self) {
+        self.core.clear_cache();
+    }
+
+    /// Get cache statistics
+    ///
+    /// Returns statistics about the current cache state including number of entries,
+    /// hit rate, and memory usage.
+    ///
+    /// # Returns
+    ///
+    /// A `CacheStats` struct containing cache performance metrics
+    #[cfg(feature = "cache")]
+    pub fn cache_stats(&self) -> crate::cache::CacheStats {
+        self.core.cache_stats()
+    }
+
+    /// Get comprehensive observability report
+    ///
+    /// Returns a detailed report including health status, metrics, cache performance,
+    /// and system information useful for monitoring and debugging.
+    ///
+    /// # Returns
+    ///
+    /// An `ObservabilityReport` containing all observability data
+    #[cfg(any(feature = "metrics", feature = "cache"))]
+    pub fn observability_report(&self) -> crate::observability::ObservabilityReport {
+        let obs = self.create_observability_system();
+        obs.get_observability_report()
+    }
+
+    /// Get health status
+    ///
+    /// Returns the current health status of the client including metrics
+    /// and cache performance indicators.
+    ///
+    /// # Returns
+    ///
+    /// A `HealthStatus` indicating the current system state
+    #[cfg(any(feature = "metrics", feature = "cache"))]
+    pub fn health_status(&self) -> crate::observability::HealthStatus {
+        let obs = self.create_observability_system();
+        obs.health_status()
+    }
+
+    #[cfg(any(feature = "metrics", feature = "cache"))]
+    fn create_observability_system(&self) -> crate::observability::ObservabilitySystem {
+        #[cfg(feature = "cache")]
+        {
+            crate::observability::ObservabilitySystem::with_cache(self.core.cache.clone())
+        }
+        #[cfg(not(feature = "cache"))]
+        {
+            crate::observability::ObservabilitySystem::new()
+        }
+    }
+
     /// Sends a DELETE request using the Jira client.
     ///
     /// # Arguments
@@ -337,7 +399,7 @@ impl Jira {
         self.request::<D>(Method::PUT, api_name, endpoint, Some(data))
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self, body))]
     fn request<D>(
         &self,
         method: Method,
@@ -348,27 +410,77 @@ impl Jira {
     where
         D: DeserializeOwned,
     {
+        let ctx = RequestContext::new(method.as_ref(), endpoint);
+        let _span = ctx.create_span().entered();
+        let method_str = method.to_string();
+
+        // Check cache first for GET requests
+        #[cfg(feature = "cache")]
+        if method == Method::GET {
+            if let Some(cached_response) = self.core.check_cache::<D>(&method_str, endpoint) {
+                debug!(
+                    correlation_id = %ctx.correlation_id,
+                    endpoint = endpoint,
+                    "Returning cached response"
+                );
+                ctx.finish(true);
+                return Ok(cached_response);
+            }
+        }
+
         let url = self.core.build_url(api_name, endpoint)?;
-        debug!("url -> {:?}", url);
+        debug!(
+            correlation_id = %ctx.correlation_id,
+            url = %url,
+            "Building request URL"
+        );
 
         let mut req = self
             .client
-            .request(method, url)
-            .header(CONTENT_TYPE, "application/json");
+            .request(method.clone(), url)
+            .header(CONTENT_TYPE, "application/json")
+            .header("X-Correlation-ID", &ctx.correlation_id);
 
         req = self.core.apply_credentials_sync(req);
 
         if let Some(body) = body {
             req = req.body(body);
         }
-        debug!("req '{:?}'", req);
 
-        let mut res = req.send()?;
+        debug!(
+            correlation_id = %ctx.correlation_id,
+            "Sending request"
+        );
 
-        let mut body = String::new();
-        res.read_to_string(&mut body)?;
-        debug!("status {:?} body '{:?}'", res.status(), body);
+        let result = (|| {
+            let mut res = req.send()?;
+            let status = res.status();
 
-        self.core.process_response(res.status(), &body)
+            let mut response_body = String::new();
+            res.read_to_string(&mut response_body)?;
+
+            debug!(
+                correlation_id = %ctx.correlation_id,
+                status = %status,
+                response_size = response_body.len(),
+                "Received response"
+            );
+
+            let response = self.core.process_response(status, &response_body)?;
+
+            // Cache successful GET responses by storing the raw JSON
+            #[cfg(feature = "cache")]
+            if status.is_success() && method == Method::GET {
+                self.core
+                    .store_raw_response(&method_str, endpoint, &response_body);
+            }
+
+            Ok(response)
+        })();
+
+        let success = result.is_ok();
+        ctx.finish(success);
+
+        result
     }
 }

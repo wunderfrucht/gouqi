@@ -42,6 +42,9 @@ humantime-serde = "1.1"
 serde_yaml = { version = "0.9", optional = true }
 toml = { version = "0.8", optional = true }
 humantime = { version = "2.1", optional = true }
+uuid = { version = "1.0", features = ["v4"], optional = true }
+parking_lot = { version = "0.12", optional = true }
+once_cell = { version = "1.19", optional = true }
 
 [features]
 default = []
@@ -49,8 +52,11 @@ async = ["tokio", "futures"]
 yaml = ["dep:serde_yaml"]
 toml-support = ["dep:toml"]
 humantime-support = ["dep:humantime"]
+metrics = ["uuid", "parking_lot", "once_cell"]
+cache = ["parking_lot", "once_cell"]
+observability = ["metrics", "cache", "uuid"]
 config-files = ["yaml", "toml-support"]
-full = ["async", "config-files", "humantime-support"]
+full = ["async", "config-files", "humantime-support", "observability"]
 
 [package.metadata.clippy]
 warn = ["missing_panics_doc"]

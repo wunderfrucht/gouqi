@@ -25,6 +25,8 @@ pub fn load_config_from_env() -> GouqiConfig {
         metrics: load_metrics_config(),
         retry: load_retry_config(),
         rate_limiting: load_rate_limiting_config(),
+        #[cfg(any(feature = "metrics", feature = "cache"))]
+        observability: load_observability_config(),
     }
 }
 
@@ -231,6 +233,17 @@ fn load_rate_limiting_config() -> RateLimitingConfig {
         requests_per_second: parse_env("JIRA_RATE_LIMIT_RPS", 10.0),
         burst_capacity: parse_env("JIRA_RATE_LIMIT_BURST", 20),
         endpoint_overrides,
+    }
+}
+
+#[cfg(any(feature = "metrics", feature = "cache"))]
+fn load_observability_config() -> crate::observability::ObservabilityConfig {
+    crate::observability::ObservabilityConfig {
+        enable_tracing: parse_bool_env("JIRA_OBSERVABILITY_TRACING", true),
+        enable_metrics: parse_bool_env("JIRA_OBSERVABILITY_METRICS", cfg!(feature = "metrics")),
+        enable_caching: parse_bool_env("JIRA_OBSERVABILITY_CACHING", cfg!(feature = "cache")),
+        health_check_interval: parse_env("JIRA_OBSERVABILITY_HEALTH_INTERVAL", 30),
+        max_error_rate: parse_env("JIRA_OBSERVABILITY_MAX_ERROR_RATE", 10.0),
     }
 }
 
