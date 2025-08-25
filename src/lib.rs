@@ -64,12 +64,18 @@ pub mod sync;
 
 pub mod attachments;
 mod builder;
+#[cfg(feature = "cache")]
+pub mod cache;
 pub mod components;
 pub mod config;
 pub mod env;
 mod errors;
 pub mod issues;
 pub mod mcp;
+#[cfg(feature = "metrics")]
+pub mod metrics;
+#[cfg(any(feature = "metrics", feature = "cache"))]
+pub mod observability;
 pub mod projects;
 pub mod relationships;
 mod rep;
@@ -79,11 +85,17 @@ pub mod versions;
 
 pub use crate::attachments::*;
 pub use crate::builder::*;
+#[cfg(feature = "cache")]
+pub use crate::cache::*;
 pub use crate::components::*;
 pub use crate::config::*;
 pub use crate::core::*; // Re-export all core types
 pub use crate::errors::*;
 pub use crate::issues::*;
+#[cfg(feature = "metrics")]
+pub use crate::metrics::*;
+#[cfg(any(feature = "metrics", feature = "cache"))]
+pub use crate::observability::*;
 pub use crate::projects::*;
 pub use crate::relationships::*;
 pub use crate::rep::*;

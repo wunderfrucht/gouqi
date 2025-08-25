@@ -14,7 +14,7 @@ use std::time::Duration;
 use crate::{Error, Result};
 
 /// Main configuration structure for the Jira client
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GouqiConfig {
     /// Timeout configuration
     pub timeout: TimeoutConfig,
@@ -28,6 +28,9 @@ pub struct GouqiConfig {
     pub retry: RetryConfig,
     /// Rate limiting configuration
     pub rate_limiting: RateLimitingConfig,
+    /// Observability configuration
+    #[cfg(any(feature = "metrics", feature = "cache"))]
+    pub observability: crate::observability::ObservabilityConfig,
 }
 
 /// Timeout configuration for various operations
@@ -233,6 +236,21 @@ impl Default for RateLimitingConfig {
     }
 }
 
+impl Default for GouqiConfig {
+    fn default() -> Self {
+        Self {
+            timeout: TimeoutConfig::default(),
+            connection_pool: ConnectionPoolConfig::default(),
+            cache: CacheConfig::default(),
+            metrics: MetricsConfig::default(),
+            retry: RetryConfig::default(),
+            rate_limiting: RateLimitingConfig::default(),
+            #[cfg(any(feature = "metrics", feature = "cache"))]
+            observability: crate::observability::ObservabilityConfig::default(),
+        }
+    }
+}
+
 impl GouqiConfig {
     /// Load configuration from file
     ///
@@ -310,6 +328,8 @@ impl GouqiConfig {
             metrics: other.metrics,
             retry: other.retry,
             rate_limiting: other.rate_limiting,
+            #[cfg(any(feature = "metrics", feature = "cache"))]
+            observability: other.observability,
         }
     }
 
@@ -473,6 +493,12 @@ impl GouqiConfig {
             },
             metrics: MetricsConfig {
                 enabled: false,
+                ..Default::default()
+            },
+            #[cfg(any(feature = "metrics", feature = "cache"))]
+            observability: crate::observability::ObservabilityConfig {
+                enable_metrics: false,
+                enable_caching: false,
                 ..Default::default()
             },
         }
