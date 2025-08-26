@@ -198,6 +198,13 @@ fn test_config_from_json_file() {
             "requests_per_second": 25.0,
             "burst_capacity": 50,
             "endpoint_overrides": {}
+        },
+        "observability": {
+            "enable_tracing": true,
+            "enable_metrics": true,
+            "enable_caching": true,
+            "health_check_interval": 30,
+            "max_error_rate": 10.0
         }
     }
     "#;
@@ -258,6 +265,12 @@ rate_limiting:
   requests_per_second: 5.0
   burst_capacity: 10
   endpoint_overrides: {}
+observability:
+  enable_tracing: false
+  enable_metrics: false
+  enable_caching: false
+  health_check_interval: 60
+  max_error_rate: 15.0
     "#;
 
     let mut temp_file = NamedTempFile::with_suffix(".yaml").unwrap();
@@ -322,6 +335,13 @@ requests_per_second = 15.0
 burst_capacity = 30
 
 [rate_limiting.endpoint_overrides]
+
+[observability]
+enable_tracing = true
+enable_metrics = true
+enable_caching = true
+health_check_interval = 45
+max_error_rate = 12.5
     "#;
 
     let mut temp_file = NamedTempFile::with_suffix(".toml").unwrap();
