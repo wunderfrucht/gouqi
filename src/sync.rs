@@ -412,6 +412,7 @@ impl Jira {
     {
         let ctx = RequestContext::new(method.as_ref(), endpoint);
         let _span = ctx.create_span().entered();
+        #[allow(unused_variables)]
         let method_str = method.to_string();
 
         // Check cache first for GET requests
