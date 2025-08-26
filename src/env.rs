@@ -372,6 +372,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_load_credentials_anonymous() {
         // Clear any existing environment variables
         remove_test_env_var("JIRA_USER");
@@ -384,6 +385,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_load_credentials_basic() {
         set_test_env_var("JIRA_USER", "testuser");
         set_test_env_var("JIRA_PASS", "testpass");
@@ -404,6 +406,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_load_credentials_bearer() {
         set_test_env_var("JIRA_TOKEN", "bearer-token-123");
         remove_test_env_var("JIRA_USER");
