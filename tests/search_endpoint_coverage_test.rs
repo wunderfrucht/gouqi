@@ -13,13 +13,15 @@ fn test_search_endpoint_selection_with_auto_fallback() {
         "https://unknown-host.example.com",
         Credentials::Anonymous,
         SearchApiVersion::Auto,
-    ).unwrap();
+    )
+    .unwrap();
 
     let jira = Jira::with_search_api_version(
         "https://unknown-host.example.com",
         Credentials::Anonymous,
         SearchApiVersion::Auto,
-    ).unwrap();
+    )
+    .unwrap();
 
     let search = jira.search();
     let (api_name, endpoint, version) = search.get_search_endpoint();
@@ -37,7 +39,8 @@ fn test_search_endpoint_selection_all_versions() {
         "https://test.example.com",
         Credentials::Anonymous,
         SearchApiVersion::V2,
-    ).unwrap();
+    )
+    .unwrap();
 
     let search_v2 = jira_v2.search();
     let (api_name, endpoint, version) = search_v2.get_search_endpoint();
@@ -50,7 +53,8 @@ fn test_search_endpoint_selection_all_versions() {
         "https://test.example.com",
         Credentials::Anonymous,
         SearchApiVersion::V3,
-    ).unwrap();
+    )
+    .unwrap();
 
     let search_v3 = jira_v3.search();
     let (api_name, endpoint, version) = search_v3.get_search_endpoint();
@@ -62,22 +66,23 @@ fn test_search_endpoint_selection_all_versions() {
 #[test]
 fn test_search_with_versioned_request_v2() {
     let mut server = Server::new();
-    let jira = Jira::with_search_api_version(
-        &server.url(),
-        Credentials::Anonymous,
-        SearchApiVersion::V2,
-    ).unwrap();
+    let jira =
+        Jira::with_search_api_version(server.url(), Credentials::Anonymous, SearchApiVersion::V2)
+            .unwrap();
 
     // Mock V2 search response
-    let mock = server.mock("GET", "/rest/api/latest/search?jql=project%3DTEST")
+    let mock = server
+        .mock("GET", "/rest/api/latest/search?jql=project%3DTEST")
         .with_status(200)
         .with_header("content-type", "application/json")
-        .with_body(r#"{
+        .with_body(
+            r#"{
             "issues": [],
             "total": 0,
             "startAt": 0,
             "maxResults": 50
-        }"#)
+        }"#,
+        )
         .create();
 
     let search_options = gouqi::SearchOptions::builder().build();
@@ -92,22 +97,23 @@ fn test_search_with_versioned_request_v2() {
 #[test]
 fn test_search_with_versioned_request_v3() {
     let mut server = Server::new();
-    let jira = Jira::with_search_api_version(
-        &server.url(),
-        Credentials::Anonymous,
-        SearchApiVersion::V3,
-    ).unwrap();
+    let jira =
+        Jira::with_search_api_version(server.url(), Credentials::Anonymous, SearchApiVersion::V3)
+            .unwrap();
 
     // Mock V3 search response
-    let mock = server.mock("GET", "/rest/api/3/search/jql?jql=project%3DTEST")
+    let mock = server
+        .mock("GET", "/rest/api/3/search/jql?jql=project%3DTEST")
         .with_status(200)
         .with_header("content-type", "application/json")
-        .with_body(r#"{
+        .with_body(
+            r#"{
             "issues": [],
             "total": 0,
             "startAt": 0,
             "maxResults": 50
-        }"#)
+        }"#,
+        )
         .create();
 
     let search_options = gouqi::SearchOptions::builder().build();
@@ -122,17 +128,20 @@ fn test_search_with_versioned_request_v3() {
 #[test]
 fn test_search_with_complex_jql_query() {
     let mut server = Server::new();
-    let jira = Jira::with_search_api_version(
-        &server.url(),
-        Credentials::Anonymous,
-        SearchApiVersion::V3,
-    ).unwrap();
+    let jira =
+        Jira::with_search_api_version(server.url(), Credentials::Anonymous, SearchApiVersion::V3)
+            .unwrap();
 
     // Mock V3 search with complex JQL (spaces become + in URL encoding)
-    let mock = server.mock("GET", "/rest/api/3/search/jql?jql=project%3DTEST+AND+status%3DOpen+ORDER+BY+created+DESC")
+    let mock = server
+        .mock(
+            "GET",
+            "/rest/api/3/search/jql?jql=project%3DTEST+AND+status%3DOpen+ORDER+BY+created+DESC",
+        )
         .with_status(200)
         .with_header("content-type", "application/json")
-        .with_body(r#"{
+        .with_body(
+            r#"{
             "issues": [{
                 "self": "https://test.atlassian.net/rest/api/2/issue/TEST-1",
                 "key": "TEST-1",
@@ -142,11 +151,15 @@ fn test_search_with_complex_jql_query() {
             "total": 1,
             "startAt": 0,
             "maxResults": 50
-        }"#)
+        }"#,
+        )
         .create();
 
     let search_options = gouqi::SearchOptions::builder().build();
-    let result = jira.search().list("project=TEST AND status=Open ORDER BY created DESC", &search_options);
+    let result = jira.search().list(
+        "project=TEST AND status=Open ORDER BY created DESC",
+        &search_options,
+    );
 
     mock.assert();
     match result {
@@ -164,14 +177,13 @@ fn test_search_with_complex_jql_query() {
 #[test]
 fn test_search_error_handling_v3_format() {
     let mut server = Server::new();
-    let jira = Jira::with_search_api_version(
-        &server.url(),
-        Credentials::Anonymous,
-        SearchApiVersion::V3,
-    ).unwrap();
+    let jira =
+        Jira::with_search_api_version(server.url(), Credentials::Anonymous, SearchApiVersion::V3)
+            .unwrap();
 
     // Mock V3 error response format (spaces become + in URL encoding)
-    let mock = server.mock("GET", "/rest/api/3/search/jql?jql=invalid+jql")
+    let mock = server
+        .mock("GET", "/rest/api/3/search/jql?jql=invalid+jql")
         .with_status(400)
         .with_header("content-type", "application/json")
         .with_body(r#"{"error": "Invalid JQL query"}"#)
@@ -194,14 +206,13 @@ fn test_search_error_handling_v3_format() {
 #[test]
 fn test_search_error_handling_v2_format() {
     let mut server = Server::new();
-    let jira = Jira::with_search_api_version(
-        &server.url(),
-        Credentials::Anonymous,
-        SearchApiVersion::V2,
-    ).unwrap();
+    let jira =
+        Jira::with_search_api_version(server.url(), Credentials::Anonymous, SearchApiVersion::V2)
+            .unwrap();
 
     // Mock V2 error response format (spaces become + in URL encoding)
-    let mock = server.mock("GET", "/rest/api/latest/search?jql=invalid+jql")
+    let mock = server
+        .mock("GET", "/rest/api/latest/search?jql=invalid+jql")
         .with_status(400)
         .with_header("content-type", "application/json")
         .with_body(r#"{"errorMessages": ["JQL syntax error"], "errors": {}}"#)
@@ -230,11 +241,12 @@ async fn test_async_search_endpoint_selection() {
         "https://test.atlassian.net",
         Credentials::Anonymous,
         SearchApiVersion::V3,
-    ).unwrap();
+    )
+    .unwrap();
 
     let search = jira.search();
     let (api_name, endpoint, version) = search.get_search_endpoint();
-    
+
     assert_eq!(api_name, "api");
     assert_eq!(endpoint, "/search/jql");
     assert_eq!(version, Some("3"));
@@ -247,21 +259,25 @@ async fn test_async_search_with_versioned_request() {
 
     let mut server = Server::new_async().await;
     let jira = AsyncJira::with_search_api_version(
-        &server.url(),
+        server.url(),
         Credentials::Anonymous,
         SearchApiVersion::V3,
-    ).unwrap();
+    )
+    .unwrap();
 
     // Mock async V3 search response
-    let mock = server.mock("GET", "/rest/api/3/search/jql?jql=project%3DTEST")
+    let mock = server
+        .mock("GET", "/rest/api/3/search/jql?jql=project%3DTEST")
         .with_status(200)
         .with_header("content-type", "application/json")
-        .with_body(r#"{
+        .with_body(
+            r#"{
             "issues": [],
             "total": 0,
             "startAt": 0,
             "maxResults": 50
-        }"#)
+        }"#,
+        )
         .create_async()
         .await;
 

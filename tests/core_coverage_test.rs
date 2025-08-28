@@ -8,22 +8,29 @@ fn test_deployment_detection_edge_cases() {
     // Test various domain patterns
     let test_cases = vec![
         ("https://company.atlassian.net", JiraDeploymentType::Cloud),
-        ("https://subdomain.atlassian.net/path", JiraDeploymentType::Cloud),
+        (
+            "https://subdomain.atlassian.net/path",
+            JiraDeploymentType::Cloud,
+        ),
         ("https://test.atlassian.net:8080", JiraDeploymentType::Cloud),
         ("https://jira.company.com", JiraDeploymentType::Unknown),
         ("https://localhost:2990", JiraDeploymentType::Unknown),
         ("http://internal-jira.corp", JiraDeploymentType::Unknown),
-        ("https://jira-server.example.org", JiraDeploymentType::Unknown),
+        (
+            "https://jira-server.example.org",
+            JiraDeploymentType::Unknown,
+        ),
     ];
 
     for (host, expected_type) in test_cases {
         let core = ClientCore::new(host, Credentials::Anonymous)
-            .expect(&format!("Failed to create ClientCore for {}", host));
-        
+            .unwrap_or_else(|_| panic!("Failed to create ClientCore for {}", host));
+
         let detected_type = core.detect_deployment_type();
         assert_eq!(
             detected_type, expected_type,
-            "Failed deployment detection for {}", host
+            "Failed deployment detection for {}",
+            host
         );
     }
 }
@@ -33,30 +40,56 @@ fn test_search_api_version_resolution_all_combinations() {
     // Test all combinations of deployment types and version settings
     let combinations = vec![
         // Cloud + Auto should give V3
-        ("https://test.atlassian.net", SearchApiVersion::Auto, SearchApiVersion::V3),
+        (
+            "https://test.atlassian.net",
+            SearchApiVersion::Auto,
+            SearchApiVersion::V3,
+        ),
         // Cloud + explicit V2 should stay V2
-        ("https://test.atlassian.net", SearchApiVersion::V2, SearchApiVersion::V2),
+        (
+            "https://test.atlassian.net",
+            SearchApiVersion::V2,
+            SearchApiVersion::V2,
+        ),
         // Cloud + explicit V3 should stay V3
-        ("https://test.atlassian.net", SearchApiVersion::V3, SearchApiVersion::V3),
+        (
+            "https://test.atlassian.net",
+            SearchApiVersion::V3,
+            SearchApiVersion::V3,
+        ),
         // Unknown + Auto should give V2
-        ("https://jira.company.com", SearchApiVersion::Auto, SearchApiVersion::V2),
+        (
+            "https://jira.company.com",
+            SearchApiVersion::Auto,
+            SearchApiVersion::V2,
+        ),
         // Unknown + explicit V2 should stay V2
-        ("https://jira.company.com", SearchApiVersion::V2, SearchApiVersion::V2),
+        (
+            "https://jira.company.com",
+            SearchApiVersion::V2,
+            SearchApiVersion::V2,
+        ),
         // Unknown + explicit V3 should stay V3
-        ("https://jira.company.com", SearchApiVersion::V3, SearchApiVersion::V3),
+        (
+            "https://jira.company.com",
+            SearchApiVersion::V3,
+            SearchApiVersion::V3,
+        ),
     ];
 
     for (host, input_version, expected_version) in combinations {
         let core = ClientCore::with_search_api_version(
-            host, 
-            Credentials::Anonymous, 
-            input_version.clone()
-        ).expect(&format!("Failed to create ClientCore for {}", host));
-        
+            host,
+            Credentials::Anonymous,
+            input_version.clone(),
+        )
+        .unwrap_or_else(|_| panic!("Failed to create ClientCore for {}", host));
+
         let resolved_version = core.get_search_api_version();
         assert_eq!(
             resolved_version, expected_version,
-            "Failed version resolution for {} with {:?}", host, input_version
+            "Failed version resolution for {} with {:?}",
+            host, input_version
         );
     }
 }
@@ -70,23 +103,46 @@ fn test_build_versioned_url_edge_cases() {
     assert_eq!(url.as_str(), "https://test.atlassian.net/rest/api/3");
 
     // Test with endpoint starting with /
-    let url = core.build_versioned_url("api", Some("3"), "/endpoint").unwrap();
-    assert_eq!(url.as_str(), "https://test.atlassian.net/rest/api/3/endpoint");
+    let url = core
+        .build_versioned_url("api", Some("3"), "/endpoint")
+        .unwrap();
+    assert_eq!(
+        url.as_str(),
+        "https://test.atlassian.net/rest/api/3/endpoint"
+    );
 
     // Test with endpoint not starting with /
-    let url = core.build_versioned_url("api", Some("3"), "endpoint").unwrap();
-    assert_eq!(url.as_str(), "https://test.atlassian.net/rest/api/3endpoint");
+    let url = core
+        .build_versioned_url("api", Some("3"), "endpoint")
+        .unwrap();
+    assert_eq!(
+        url.as_str(),
+        "https://test.atlassian.net/rest/api/3endpoint"
+    );
 
     // Test with None version (should default to "latest")
     let url = core.build_versioned_url("api", None, "/endpoint").unwrap();
-    assert_eq!(url.as_str(), "https://test.atlassian.net/rest/api/latest/endpoint");
+    assert_eq!(
+        url.as_str(),
+        "https://test.atlassian.net/rest/api/latest/endpoint"
+    );
 
     // Test different API types
-    let url = core.build_versioned_url("agile", Some("1.0"), "/board").unwrap();
-    assert_eq!(url.as_str(), "https://test.atlassian.net/rest/agile/1.0/board");
+    let url = core
+        .build_versioned_url("agile", Some("1.0"), "/board")
+        .unwrap();
+    assert_eq!(
+        url.as_str(),
+        "https://test.atlassian.net/rest/agile/1.0/board"
+    );
 
-    let url = core.build_versioned_url("auth", Some("1"), "/session").unwrap();
-    assert_eq!(url.as_str(), "https://test.atlassian.net/rest/auth/1/session");
+    let url = core
+        .build_versioned_url("auth", Some("1"), "/session")
+        .unwrap();
+    assert_eq!(
+        url.as_str(),
+        "https://test.atlassian.net/rest/auth/1/session"
+    );
 }
 
 #[test]
@@ -95,7 +151,9 @@ fn test_build_url_vs_build_versioned_url_consistency() {
 
     // build_url should be equivalent to build_versioned_url with version "latest"
     let url1 = core.build_url("api", "/endpoint").unwrap();
-    let url2 = core.build_versioned_url("api", Some("latest"), "/endpoint").unwrap();
+    let url2 = core
+        .build_versioned_url("api", Some("latest"), "/endpoint")
+        .unwrap();
     assert_eq!(url1, url2);
 
     // Test with None version (defaults to "latest")
@@ -129,7 +187,8 @@ fn test_client_core_debug_representation() {
         "https://test.atlassian.net",
         Credentials::Bearer("token".to_string()),
         SearchApiVersion::V3,
-    ).unwrap();
+    )
+    .unwrap();
 
     let debug_str = format!("{:?}", core);
     assert!(debug_str.contains("ClientCore"));
@@ -171,15 +230,15 @@ fn test_search_api_version_default() {
 #[test]
 fn test_invalid_url_handling() {
     // Test that invalid URLs are properly rejected
-    let invalid_urls = vec![
-        "not-a-url",
-        "",
-        "https://",
-    ];
+    let invalid_urls = vec!["not-a-url", "", "https://"];
 
     for invalid_url in invalid_urls {
         let result = ClientCore::new(invalid_url, Credentials::Anonymous);
-        assert!(result.is_err(), "Should reject invalid URL: {}", invalid_url);
+        assert!(
+            result.is_err(),
+            "Should reject invalid URL: {}",
+            invalid_url
+        );
     }
 
     // FTP URLs are actually valid URLs, just not typical for Jira
@@ -207,19 +266,20 @@ fn test_host_with_various_schemes() {
 #[cfg(feature = "cache")]
 #[test]
 fn test_client_core_with_cache_configuration() {
-    use std::sync::Arc;
     use gouqi::cache::{MemoryCache, RuntimeCacheConfig};
+    use std::sync::Arc;
     use std::time::Duration;
 
     let custom_cache = Arc::new(MemoryCache::new(Duration::from_secs(600)));
     let cache_config = RuntimeCacheConfig::default();
-    
+
     let core = ClientCore::with_cache(
         "https://test.atlassian.net",
         Credentials::Anonymous,
         custom_cache,
         cache_config,
-    ).unwrap();
+    )
+    .unwrap();
 
     // Should default to Auto version when using cache constructor
     assert_eq!(core.get_search_api_version(), SearchApiVersion::V3); // Cloud should resolve to V3
