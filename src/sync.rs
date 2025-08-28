@@ -33,6 +33,12 @@ impl Jira {
     pub(crate) fn host(&self) -> &url::Url {
         &self.core.host
     }
+
+    /// Get the configured search API version for testing purposes
+    #[cfg(debug_assertions)]
+    pub fn get_search_api_version(&self) -> crate::core::SearchApiVersion {
+        self.core.get_search_api_version()
+    }
 }
 
 impl Jira {
@@ -70,6 +76,37 @@ impl Jira {
     ///
     /// A `Result` containing the new Jira client instance if successful
     pub fn with_core(core: ClientCore) -> Result<Jira> {
+        Ok(Jira {
+            core,
+            client: Client::new(),
+        })
+    }
+
+    /// Creates a new Jira client with specific search API version
+    ///
+    /// This allows you to explicitly control which search API version to use:
+    /// - `SearchApiVersion::Auto` (default): Automatically detect best version
+    /// - `SearchApiVersion::V2`: Force use of legacy /rest/api/2/search
+    /// - `SearchApiVersion::V3`: Force use of enhanced /rest/api/3/search/jql
+    ///
+    /// # Arguments
+    ///
+    /// * `host` - Jira server URL
+    /// * `credentials` - Authentication credentials
+    /// * `search_api_version` - Which search API version to use
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the new Jira client instance if successful
+    pub fn with_search_api_version<H>(
+        host: H,
+        credentials: Credentials,
+        search_api_version: crate::core::SearchApiVersion,
+    ) -> Result<Jira>
+    where
+        H: Into<String>,
+    {
+        let core = ClientCore::with_search_api_version(host, credentials, search_api_version)?;
         Ok(Jira {
             core,
             client: Client::new(),
@@ -329,6 +366,30 @@ impl Jira {
         self.request::<D>(Method::GET, api_name, endpoint, None)
     }
 
+    /// Sends a GET request with specific API version using the Jira client.
+    ///
+    /// # Arguments
+    ///
+    /// * `api_name` - Name of the API: like "agile" or "api"
+    /// * `version` - API version: like "2", "3", "latest", or None for default
+    /// * `endpoint` - API endpoint path
+    ///
+    /// # Returns  
+    ///
+    /// `Result<D>` - Response deserialized into type `D`
+    #[tracing::instrument]
+    pub fn get_versioned<D>(
+        &self,
+        api_name: &str,
+        version: Option<&str>,
+        endpoint: &str,
+    ) -> Result<D>
+    where
+        D: DeserializeOwned,
+    {
+        self.request_versioned::<D>(Method::GET, api_name, version, endpoint, None)
+    }
+
     /// Sends a POST request using the Jira client.
     ///
     /// # Arguments
@@ -465,6 +526,93 @@ impl Jira {
                 status = %status,
                 response_size = response_body.len(),
                 "Received response"
+            );
+
+            let response = self.core.process_response(status, &response_body)?;
+
+            // Cache successful GET responses by storing the raw JSON
+            #[cfg(feature = "cache")]
+            if status.is_success() && method == Method::GET {
+                self.core
+                    .store_raw_response(&method_str, endpoint, &response_body);
+            }
+
+            Ok(response)
+        })();
+
+        let success = result.is_ok();
+        ctx.finish(success);
+
+        result
+    }
+
+    #[tracing::instrument(skip(self, body))]
+    fn request_versioned<D>(
+        &self,
+        method: Method,
+        api_name: &str,
+        version: Option<&str>,
+        endpoint: &str,
+        body: Option<Vec<u8>>,
+    ) -> Result<D>
+    where
+        D: DeserializeOwned,
+    {
+        let ctx = RequestContext::new(method.as_ref(), endpoint);
+        let _span = ctx.create_span().entered();
+        #[allow(unused_variables)]
+        let method_str = method.to_string();
+
+        // Check cache first for GET requests
+        #[cfg(feature = "cache")]
+        if method == Method::GET {
+            if let Some(cached_response) = self.core.check_cache::<D>(&method_str, endpoint) {
+                debug!(
+                    correlation_id = %ctx.correlation_id,
+                    endpoint = endpoint,
+                    "Returning cached response"
+                );
+                ctx.finish(true);
+                return Ok(cached_response);
+            }
+        }
+
+        let url = self.core.build_versioned_url(api_name, version, endpoint)?;
+        debug!(
+            correlation_id = %ctx.correlation_id,
+            url = %url,
+            "Building versioned request URL"
+        );
+
+        let mut req = self
+            .client
+            .request(method.clone(), url)
+            .header(CONTENT_TYPE, "application/json")
+            .header("X-Correlation-ID", &ctx.correlation_id);
+
+        req = self.core.apply_credentials_sync(req);
+
+        if let Some(body) = body {
+            req = req.body(body);
+        }
+
+        debug!(
+            correlation_id = %ctx.correlation_id,
+            "Sending versioned request"
+        );
+
+        let result = (|| {
+            let mut res = req.send()?;
+            let status = res.status();
+
+            let mut response_body = String::new();
+            res.read_to_string(&mut response_body)?;
+
+            debug!(
+                correlation_id = %ctx.correlation_id,
+                status = %status,
+                response_size = response_body.len(),
+                "Received versioned response"
             );
 
             let response = self.core.process_response(status, &response_body)?;
