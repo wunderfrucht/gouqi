@@ -12,9 +12,13 @@ use crate::{Jira, Result};
 /// Represents an general jira error response
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Errors {
-    #[serde(rename = "errorMessages")]
+    #[serde(rename = "errorMessages", default)]
     pub error_messages: Vec<String>,
+    #[serde(default)]
     pub errors: BTreeMap<String, String>,
+    // Support for V3 API error format
+    #[serde(default)]
+    pub error: Option<String>,
 }
 
 /// Represents a single jira issue

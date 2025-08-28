@@ -25,6 +25,31 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EmptyResponse;
 
+/// Jira deployment types for API version detection
+#[derive(Clone, Debug, PartialEq)]
+pub enum JiraDeploymentType {
+    /// Jira Cloud (*.atlassian.net) - typically supports latest API versions
+    Cloud,
+    /// Jira Data Center - self-managed enterprise, version support varies
+    DataCenter,
+    /// Jira Server - end-of-life but may still exist, limited API support
+    Server,
+    /// Unknown deployment type - requires capability testing
+    Unknown,
+}
+
+/// Search API versions supported by different Jira deployments
+#[derive(Clone, Debug, PartialEq, Default)]
+pub enum SearchApiVersion {
+    /// Automatically detect the best available version
+    #[default]
+    Auto,
+    /// Use /rest/api/2/search (legacy, being deprecated)
+    V2,
+    /// Use /rest/api/3/search/jql (enhanced search)
+    V3,
+}
+
 /// Types of authentication credentials
 ///
 /// # Notes
@@ -51,6 +76,7 @@ pub enum Credentials {
 pub struct ClientCore {
     pub host: Url,
     pub credentials: Credentials,
+    pub search_api_version: SearchApiVersion,
     #[cfg(feature = "cache")]
     pub cache: Arc<dyn Cache>,
     #[cfg(feature = "cache")]
@@ -62,6 +88,7 @@ impl std::fmt::Debug for ClientCore {
         f.debug_struct("ClientCore")
             .field("host", &self.host)
             .field("credentials", &self.credentials)
+            .field("search_api_version", &self.search_api_version)
             .field("cache_enabled", &cfg!(feature = "cache"))
             .finish()
     }
@@ -142,10 +169,23 @@ impl ClientCore {
     where
         H: Into<String>,
     {
+        Self::with_search_api_version(host, credentials, SearchApiVersion::default())
+    }
+
+    /// Creates a new client core with specific search API version
+    pub fn with_search_api_version<H>(
+        host: H,
+        credentials: Credentials,
+        search_api_version: SearchApiVersion,
+    ) -> Result<Self>
+    where
+        H: Into<String>,
+    {
         match Url::parse(&host.into()) {
             Ok(host) => Ok(ClientCore {
                 host,
                 credentials,
+                search_api_version,
                 #[cfg(feature = "cache")]
                 cache: Arc::new(MemoryCache::new(std::time::Duration::from_secs(300))),
                 #[cfg(feature = "cache")]
@@ -170,6 +210,7 @@ impl ClientCore {
             Ok(host) => Ok(ClientCore {
                 host,
                 credentials,
+                search_api_version: SearchApiVersion::default(),
                 cache,
                 cache_config,
             }),
@@ -181,6 +222,19 @@ impl ClientCore {
     pub fn build_url(&self, api_name: &str, endpoint: &str) -> Result<Url> {
         self.host
             .join(&format!("rest/{api_name}/latest{endpoint}"))
+            .map_err(Error::from)
+    }
+
+    /// Builds the API URL for a request with specific version
+    pub fn build_versioned_url(
+        &self,
+        api_name: &str,
+        version: Option<&str>,
+        endpoint: &str,
+    ) -> Result<Url> {
+        let version_part = version.unwrap_or("latest");
+        self.host
+            .join(&format!("rest/{api_name}/{version_part}{endpoint}"))
             .map_err(Error::from)
     }
 
@@ -323,6 +377,35 @@ impl ClientCore {
                 reqwest::header::COOKIE,
                 format!("JSESSIONID={}", jsessionid),
             ),
+        }
+    }
+
+    /// Detect Jira deployment type based on host URL
+    pub fn detect_deployment_type(&self) -> JiraDeploymentType {
+        let host_str = self.host.host_str().unwrap_or("");
+        if host_str.contains(".atlassian.net") {
+            JiraDeploymentType::Cloud
+        } else {
+            // For self-hosted instances, we can't easily distinguish between
+            // Server and Data Center from the URL alone, so we use Unknown
+            // which will trigger capability testing
+            JiraDeploymentType::Unknown
+        }
+    }
+
+    /// Get the optimal search API version based on deployment type and configuration
+    pub fn get_search_api_version(&self) -> SearchApiVersion {
+        match &self.search_api_version {
+            SearchApiVersion::Auto => {
+                match self.detect_deployment_type() {
+                    JiraDeploymentType::Cloud => SearchApiVersion::V3,
+                    // For self-hosted, we'll need runtime detection
+                    JiraDeploymentType::DataCenter
+                    | JiraDeploymentType::Server
+                    | JiraDeploymentType::Unknown => SearchApiVersion::V2, // Default to V2 for now
+                }
+            }
+            version => version.clone(),
         }
     }
 }

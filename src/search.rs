@@ -26,6 +26,19 @@ impl Search {
         Search { jira: jira.clone() }
     }
 
+    /// Get the appropriate API name and endpoint based on configured search API version
+    pub fn get_search_endpoint(&self) -> (&'static str, &'static str, Option<&'static str>) {
+        use crate::core::SearchApiVersion;
+        match self.jira.core.get_search_api_version() {
+            SearchApiVersion::V2 => ("api", "/search", Some("latest")),
+            SearchApiVersion::V3 => ("api", "/search/jql", Some("3")),
+            SearchApiVersion::Auto => {
+                // This should not happen as get_search_api_version resolves Auto to a concrete version
+                ("api", "/search", Some("latest"))
+            }
+        }
+    }
+
     /// Returns a single page of search results
     ///
     /// See the [jira docs](https://docs.atlassian.com/jira/REST/latest/#api/2/search)
@@ -34,14 +47,15 @@ impl Search {
     where
         J: Into<String>,
     {
-        let mut path = vec!["/search".to_owned()];
+        let (api_name, endpoint, version) = self.get_search_endpoint();
+        let mut path = vec![endpoint.to_owned()];
         let query_options = options.serialize().unwrap_or_default();
         let query = form_urlencoded::Serializer::new(query_options)
             .append_pair("jql", &jql.into())
             .finish();
         path.push(query);
         self.jira
-            .get::<SearchResults>("api", path.join("?").as_ref())
+            .get_versioned::<SearchResults>(api_name, version, path.join("?").as_ref())
     }
 
     /// Return a type which may be used to iterate over consecutive pages of results
@@ -130,6 +144,19 @@ impl AsyncSearch {
         AsyncSearch { jira: jira.clone() }
     }
 
+    /// Get the appropriate API name and endpoint based on configured search API version
+    pub fn get_search_endpoint(&self) -> (&'static str, &'static str, Option<&'static str>) {
+        use crate::core::SearchApiVersion;
+        match self.jira.core.get_search_api_version() {
+            SearchApiVersion::V2 => ("api", "/search", Some("latest")),
+            SearchApiVersion::V3 => ("api", "/search/jql", Some("3")),
+            SearchApiVersion::Auto => {
+                // This should not happen as get_search_api_version resolves Auto to a concrete version
+                ("api", "/search", Some("latest"))
+            }
+        }
+    }
+
     /// Returns a single page of search results asynchronously
     ///
     /// See the [jira docs](https://docs.atlassian.com/jira/REST/latest/#api/2/search)
@@ -138,14 +165,15 @@ impl AsyncSearch {
     where
         J: Into<String>,
     {
-        let mut path = vec!["/search".to_owned()];
+        let (api_name, endpoint, version) = self.get_search_endpoint();
+        let mut path = vec![endpoint.to_owned()];
         let query_options = options.serialize().unwrap_or_default();
         let query = form_urlencoded::Serializer::new(query_options)
             .append_pair("jql", &jql.into())
             .finish();
         path.push(query);
         self.jira
-            .get::<SearchResults>("api", path.join("?").as_ref())
+            .get_versioned::<SearchResults>(api_name, version, path.join("?").as_ref())
             .await
     }
 
