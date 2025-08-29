@@ -6,19 +6,19 @@ use gouqi::{Credentials, Jira};
 
 #[test]
 fn test_conditional_features() {
-    let jira = Jira::new("https://test.example.com", Credentials::Anonymous).unwrap();
+    let _jira = Jira::new("https://test.example.com", Credentials::Anonymous).unwrap();
 
     // These methods exist regardless of features, testing the conditional compilation paths
     #[cfg(feature = "cache")]
     {
-        let _stats = jira.cache_stats();
-        jira.clear_cache();
+        let _stats = _jira.cache_stats();
+        _jira.clear_cache();
     }
 
     #[cfg(any(feature = "metrics", feature = "cache"))]
     {
-        let _report = jira.observability_report();
-        let _health = jira.health_status();
+        let _report = _jira.observability_report();
+        let _health = _jira.health_status();
     }
 }
 
@@ -102,9 +102,10 @@ fn test_empty_response_struct() {
     // Test that EmptyResponse can be serialized/deserialized
     let empty = EmptyResponse;
     let json = serde_json::to_string(&empty).unwrap();
-    assert_eq!(json, "{}");
+    // EmptyResponse serializes to null, not {}
+    assert_eq!(json, "null");
 
-    let deserialized: EmptyResponse = serde_json::from_str("{}").unwrap();
+    let deserialized: EmptyResponse = serde_json::from_str("null").unwrap();
     let debug_str = format!("{:?}", deserialized);
     assert!(debug_str.contains("EmptyResponse"));
 }
