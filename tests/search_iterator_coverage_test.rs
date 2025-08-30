@@ -8,7 +8,7 @@ fn test_search_get_endpoint_method() {
     // Test the get_search_endpoint method directly
     let jira = Jira::new("https://test.example.com", Credentials::Anonymous).unwrap();
     let search = jira.search();
-    
+
     let (api_name, endpoint, version) = search.get_search_endpoint();
     assert_eq!(api_name, "api");
     assert!(endpoint == "/search" || endpoint == "/search/jql");
@@ -39,10 +39,10 @@ fn test_search_options_serialization() {
 #[tokio::test]
 async fn test_async_search_get_endpoint() {
     use gouqi::r#async::Jira as AsyncJira;
-    
+
     let jira = AsyncJira::new("https://test.example.com", Credentials::Anonymous).unwrap();
     let search = jira.search();
-    
+
     let (api_name, endpoint, version) = search.get_search_endpoint();
     assert_eq!(api_name, "api");
     assert!(endpoint == "/search" || endpoint == "/search/jql");

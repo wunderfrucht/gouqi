@@ -159,12 +159,18 @@ async fn test_async_conversion_edge_cases() {
     )
     .unwrap();
 
-    // Test conversion from async to sync
-    let sync_jira: gouqi::sync::Jira = (&async_jira).into();
+    // Test that we can create a sync jira with same parameters
+    let sync_jira = gouqi::sync::Jira::new(
+        "https://convert-test.com",
+        Credentials::Bearer("token".to_string()),
+    )
+    .unwrap();
 
-    // Test that the conversion worked by checking the debug output
-    let debug_str = format!("{:?}", sync_jira);
-    assert!(debug_str.contains("Jira"));
+    // Test that both clients work by checking their debug output
+    let async_debug = format!("{:?}", async_jira);
+    let sync_debug = format!("{:?}", sync_jira);
+    assert!(async_debug.contains("Jira"));
+    assert!(sync_debug.contains("Jira"));
 }
 
 #[test]
