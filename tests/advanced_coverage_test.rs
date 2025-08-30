@@ -382,19 +382,35 @@ async fn test_async_cache_and_observability() {
 
 #[cfg(feature = "async")]
 #[tokio::test]
-async fn test_async_sync_conversion() {
+async fn test_async_client_operations() {
     use gouqi::r#async::Jira as AsyncJira;
 
     let async_jira = AsyncJira::new("https://test.com", Credentials::Anonymous).unwrap();
 
-    // Test that we can create a sync jira with same parameters
-    let sync_jira = gouqi::sync::Jira::new("https://test.com", Credentials::Anonymous).unwrap();
-
-    // Verify both clients work by checking their debug output
+    // Test async client debug output
     let async_debug = format!("{:?}", async_jira);
-    let sync_debug = format!("{:?}", sync_jira);
     assert!(async_debug.contains("Jira"));
+
+    // Test async interface creation methods
+    let _search = async_jira.search();
+    let _issues = async_jira.issues();
+    let _projects = async_jira.projects();
+    let _boards = async_jira.boards();
+}
+
+#[test]
+fn test_sync_client_operations() {
+    let sync_jira = Jira::new("https://test.com", Credentials::Anonymous).unwrap();
+
+    // Test sync client debug output
+    let sync_debug = format!("{:?}", sync_jira);
     assert!(sync_debug.contains("Jira"));
+
+    // Test sync interface creation methods
+    let _search = sync_jira.search();
+    let _issues = sync_jira.issues();
+    let _projects = sync_jira.projects();
+    let _boards = sync_jira.boards();
 }
 
 #[test]
