@@ -159,18 +159,34 @@ async fn test_async_conversion_edge_cases() {
     )
     .unwrap();
 
-    // Test that we can create a sync jira with same parameters
+    // Test that the async client works by checking debug output
+    let async_debug = format!("{:?}", async_jira);
+    assert!(async_debug.contains("Jira"));
+
+    // Test async interface creation methods
+    let _search = async_jira.search();
+    let _issues = async_jira.issues();
+    let _projects = async_jira.projects();
+    let _boards = async_jira.boards();
+}
+
+#[test]
+fn test_sync_conversion_edge_cases() {
     let sync_jira = gouqi::sync::Jira::new(
         "https://convert-test.com",
         Credentials::Bearer("token".to_string()),
     )
     .unwrap();
 
-    // Test that both clients work by checking their debug output
-    let async_debug = format!("{:?}", async_jira);
+    // Test that the sync client works by checking debug output
     let sync_debug = format!("{:?}", sync_jira);
-    assert!(async_debug.contains("Jira"));
     assert!(sync_debug.contains("Jira"));
+
+    // Test sync interface creation methods
+    let _search = sync_jira.search();
+    let _issues = sync_jira.issues();
+    let _projects = sync_jira.projects();
+    let _boards = sync_jira.boards();
 }
 
 #[test]
