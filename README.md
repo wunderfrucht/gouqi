@@ -25,6 +25,17 @@ gouqi = { version = "*", features = ["async"] }
 
 Please browse the [examples](examples/) directory in this repo for some example applications.
 
+### 🚀 Jira V3 API Migration
+
+gouqi automatically handles the Jira V3 API transition! Your existing code continues to work seamlessly:
+
+```rust
+// Works on both V2 and V3 automatically - no code changes needed!
+let results = jira.search().list("project = TEST", &Default::default())?;
+```
+
+For advanced field control and migration details, see the [**Jira V3 Migration Guide**](JIRA_V3_MIGRATION_GUIDE.md).
+
 Basic usage requires a jira host, and a flavor of `jira::Credentials` for authorization.
 
 ### Synchronous API
