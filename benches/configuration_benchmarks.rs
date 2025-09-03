@@ -2,8 +2,8 @@
 // Run with: cargo bench --bench configuration_benchmarks
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use std::hint::black_box;
 use std::collections::HashMap;
+use std::hint::black_box;
 use std::time::Duration;
 
 use gouqi::{ConfigTemplate, Credentials, FieldSchema, GouqiConfig, JiraBuilder};

@@ -184,7 +184,7 @@ fn test_search_error_handling_v3_format() {
     let mock = server
         .mock(
             "GET",
-            "/rest/api/3/search/jql?maxResults=50&fields=id%2Cself%2Ckey%2Csummary%2Cstatus&jql=invalid+jql",
+            "/rest/api/3/search/jql?fields=id%2Cself%2Ckey%2Csummary%2Cstatus&maxResults=50&jql=invalid+jql",
         )
         .with_status(400)
         .with_header("content-type", "application/json")

@@ -61,9 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         });
 
-        let custom_issue = gouqi::issues::CreateCustomIssue {
-            fields: issue_data,
-        };
+        let custom_issue = gouqi::issues::CreateCustomIssue { fields: issue_data };
 
         match jira.issues().create_from_custom_issue(custom_issue) {
             Ok(created) => {
