@@ -1,7 +1,8 @@
 // Performance benchmarks for configuration system
 // Run with: cargo bench --bench configuration_benchmarks
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use std::hint::black_box;
 use std::collections::HashMap;
 use std::time::Duration;
 
