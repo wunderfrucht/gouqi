@@ -1,12 +1,13 @@
 //! Interfaces for searching for issues
 
 // Third party
+use tracing::warn;
 use url::form_urlencoded;
 
 // Ours
 use crate::core::PaginationInfo;
 use crate::sync::Jira;
-use crate::{Issue, Result, SearchOptions, SearchResults};
+use crate::{Error, Issue, Result, SearchOptions, SearchResults, V3SearchResults};
 
 #[cfg(feature = "async")]
 use futures::Future;
@@ -24,6 +25,53 @@ pub struct Search {
 impl Search {
     pub fn new(jira: &Jira) -> Search {
         Search { jira: jira.clone() }
+    }
+
+    /// Validate query for V3 API requirements
+    /// V3 requires "bounded" queries which means having maxResults set
+    fn validate_v3_query(jql: &str, options: &SearchOptions) -> Result<()> {
+        // V3 requires maxResults to be set (bounded query requirement)
+        if options.max_results().is_none() {
+            return Err(Error::InvalidQuery {
+                message:
+                    "V3 API requires bounded queries. Please set maxResults parameter (max 5000)."
+                        .to_string(),
+            });
+        }
+
+        // Empty JQL is not allowed in V3
+        if jql.trim().is_empty() {
+            return Err(Error::InvalidQuery {
+                message:
+                    "V3 API does not allow empty JQL queries. Please provide a valid JQL query."
+                        .to_string(),
+            });
+        }
+
+        // Provide helpful warning for potentially expensive queries
+        // This is not a hard requirement but helps users write better queries
+        let jql_lower = jql.to_lowercase();
+        let has_limiting_clause = jql_lower.contains("project")
+            || jql_lower.contains("assignee")
+            || jql_lower.contains("reporter")
+            || jql_lower.contains("created")
+            || jql_lower.contains("updated")
+            || jql_lower.contains("key")
+            || jql_lower.contains("id")
+            || jql_lower.contains("sprint")
+            || jql_lower.contains("fixversion")
+            || jql_lower.contains("component");
+
+        if !has_limiting_clause {
+            // This is just a warning in logs, not an error
+            // The API will handle the actual validation
+            warn!(
+                "JQL query may be expensive without limiting clauses: {}",
+                jql
+            );
+        }
+
+        Ok(())
     }
 
     /// Get the appropriate API name and endpoint based on configured search API version
@@ -47,15 +95,85 @@ impl Search {
     where
         J: Into<String>,
     {
+        let jql_string = jql.into();
         let (api_name, endpoint, version) = self.get_search_endpoint();
+
+        // Auto-inject maxResults for V3 if not set to meet bounded query requirement
+        let mut final_options = options.clone();
+        if matches!(
+            self.jira.core.get_search_api_version(),
+            crate::core::SearchApiVersion::V3
+        ) {
+            // Ensure maxResults is set for V3 (bounded query requirement)
+            let current_max = final_options.max_results();
+            if current_max.is_none() {
+                final_options = final_options
+                    .as_builder()
+                    .max_results(50) // Default to 50 if not specified
+                    .build();
+            } else if let Some(max) = current_max {
+                // V3 API has a maximum limit of 5000 results per request
+                if max > 5000 {
+                    warn!(
+                        "maxResults {} exceeds V3 API limit of 5000, capping at 5000",
+                        max
+                    );
+                    final_options = final_options.as_builder().max_results(5000).build();
+                }
+            }
+
+            // Validate V3 requirements
+            Self::validate_v3_query(&jql_string, &final_options)?;
+        }
+
         let mut path = vec![endpoint.to_owned()];
-        let query_options = options.serialize().unwrap_or_default();
+
+        // Auto-inject essential fields for V3 if none specified
+        if !final_options.fields_explicitly_set()
+            && matches!(
+                self.jira.core.get_search_api_version(),
+                crate::core::SearchApiVersion::V3
+            )
+        {
+            final_options = final_options.as_builder().essential_fields().build();
+        }
+
+        let query_options = final_options.serialize().unwrap_or_default();
         let query = form_urlencoded::Serializer::new(query_options)
-            .append_pair("jql", &jql.into())
+            .append_pair("jql", &jql_string)
             .finish();
         path.push(query);
-        self.jira
-            .get_versioned::<SearchResults>(api_name, version, path.join("?").as_ref())
+
+        // Handle different response formats for V2 vs V3
+        match self.jira.core.get_search_api_version() {
+            crate::core::SearchApiVersion::V3 => {
+                // Use new V3SearchResults format and convert to legacy format
+                let v3_results = self.jira.get_versioned::<V3SearchResults>(
+                    api_name,
+                    version,
+                    path.join("?").as_ref(),
+                )?;
+
+                // Extract pagination info from options for conversion
+                let start_at = final_options.start_at().unwrap_or(0);
+                let max_results = final_options.max_results().unwrap_or(50);
+
+                Ok(v3_results.to_search_results(start_at, max_results))
+            }
+            _ => {
+                // Use legacy SearchResults format for V2
+                let mut results = self.jira.get_versioned::<SearchResults>(
+                    api_name,
+                    version,
+                    path.join("?").as_ref(),
+                )?;
+                // V2 provides accurate totals
+                results.total_is_accurate = Some(true);
+                results.is_last_page =
+                    Some(results.start_at + results.issues.len() as u64 >= results.total);
+                Ok(results)
+            }
+        }
     }
 
     /// Return a type which may be used to iterate over consecutive pages of results
@@ -97,6 +215,12 @@ impl<'a> Iter<'a> {
     }
 
     fn more(&self) -> bool {
+        // For V3 API, use is_last_page if available
+        if let Some(is_last) = self.results.is_last_page {
+            return !is_last;
+        }
+
+        // For V2 API or fallback, use traditional pagination logic
         let start_at = self.results.start_at;
         let current_count = self.results.issues.len() as u64;
         let total = self.results.total;
@@ -109,15 +233,24 @@ impl Iterator for Iter<'_> {
     fn next(&mut self) -> Option<Issue> {
         self.results.issues.pop().or_else(|| {
             if self.more() {
-                match self.jira.search().list(
-                    self.jql.clone(),
-                    &self
-                        .search_options
+                // Build options for next page
+                let next_options = if let Some(ref token) = self.results.next_page_token {
+                    // V3 API: Use nextPageToken for pagination
+                    self.search_options
+                        .as_builder()
+                        .max_results(self.results.max_results)
+                        .next_page_token(token)
+                        .build()
+                } else {
+                    // V2 API: Use startAt for pagination
+                    self.search_options
                         .as_builder()
                         .max_results(self.results.max_results)
                         .start_at(self.results.start_at + self.results.max_results)
-                        .build(),
-                ) {
+                        .build()
+                };
+
+                match self.jira.search().list(self.jql.clone(), &next_options) {
                     Ok(new_results) => {
                         self.results = new_results;
                         self.results.issues.pop()
@@ -165,16 +298,83 @@ impl AsyncSearch {
     where
         J: Into<String>,
     {
+        let jql_string = jql.into();
         let (api_name, endpoint, version) = self.get_search_endpoint();
+
+        // Auto-inject maxResults for V3 if not set to meet bounded query requirement
+        let mut final_options = options.clone();
+        if matches!(
+            self.jira.core.get_search_api_version(),
+            crate::core::SearchApiVersion::V3
+        ) {
+            // Ensure maxResults is set for V3 (bounded query requirement)
+            let current_max = final_options.max_results();
+            if current_max.is_none() {
+                final_options = final_options
+                    .as_builder()
+                    .max_results(50) // Default to 50 if not specified
+                    .build();
+            } else if let Some(max) = current_max {
+                // V3 API has a maximum limit of 5000 results per request
+                if max > 5000 {
+                    warn!(
+                        "maxResults {} exceeds V3 API limit of 5000, capping at 5000",
+                        max
+                    );
+                    final_options = final_options.as_builder().max_results(5000).build();
+                }
+            }
+
+            // Validate V3 requirements
+            Search::validate_v3_query(&jql_string, &final_options)?;
+        }
+
         let mut path = vec![endpoint.to_owned()];
-        let query_options = options.serialize().unwrap_or_default();
+
+        // Auto-inject essential fields for V3 if none specified
+        if !final_options.fields_explicitly_set()
+            && matches!(
+                self.jira.core.get_search_api_version(),
+                crate::core::SearchApiVersion::V3
+            )
+        {
+            final_options = final_options.as_builder().essential_fields().build();
+        }
+
+        let query_options = final_options.serialize().unwrap_or_default();
         let query = form_urlencoded::Serializer::new(query_options)
-            .append_pair("jql", &jql.into())
+            .append_pair("jql", &jql_string)
             .finish();
         path.push(query);
-        self.jira
-            .get_versioned::<SearchResults>(api_name, version, path.join("?").as_ref())
-            .await
+
+        // Handle different response formats for V2 vs V3
+        match self.jira.core.get_search_api_version() {
+            crate::core::SearchApiVersion::V3 => {
+                // Use new V3SearchResults format and convert to legacy format
+                let v3_results = self
+                    .jira
+                    .get_versioned::<V3SearchResults>(api_name, version, path.join("?").as_ref())
+                    .await?;
+
+                // Extract pagination info from options for conversion
+                let start_at = final_options.start_at().unwrap_or(0);
+                let max_results = final_options.max_results().unwrap_or(50);
+
+                Ok(v3_results.to_search_results(start_at, max_results))
+            }
+            _ => {
+                // Use legacy SearchResults format for V2
+                let mut results = self
+                    .jira
+                    .get_versioned::<SearchResults>(api_name, version, path.join("?").as_ref())
+                    .await?;
+                // V2 provides accurate totals
+                results.total_is_accurate = Some(true);
+                results.is_last_page =
+                    Some(results.start_at + results.issues.len() as u64 >= results.total);
+                Ok(results)
+            }
+        }
     }
 
     /// Return a stream which yields issues from consecutive pages of results

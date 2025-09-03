@@ -101,17 +101,18 @@ fn test_search_with_versioned_request_v3() {
         Jira::with_search_api_version(server.url(), Credentials::Anonymous, SearchApiVersion::V3)
             .unwrap();
 
-    // Mock V3 search response
+    // Mock V3 search response (now includes auto-injected essential fields and maxResults)
     let mock = server
-        .mock("GET", "/rest/api/3/search/jql?jql=project%3DTEST")
+        .mock(
+            "GET",
+            "/rest/api/3/search/jql?fields=id%2Cself%2Ckey%2Csummary%2Cstatus&maxResults=50&jql=project%3DTEST",
+        )
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(
             r#"{
             "issues": [],
-            "total": 0,
-            "startAt": 0,
-            "maxResults": 50
+            "isLast": true
         }"#,
         )
         .create();
@@ -122,7 +123,7 @@ fn test_search_with_versioned_request_v3() {
     mock.assert();
     assert!(result.is_ok());
     let search_results = result.unwrap();
-    assert_eq!(search_results.total, 0);
+    assert_eq!(search_results.total, 0); // V3 conversion: 0 + 0 issues = 0 total
 }
 
 #[test]
@@ -132,11 +133,11 @@ fn test_search_with_complex_jql_query() {
         Jira::with_search_api_version(server.url(), Credentials::Anonymous, SearchApiVersion::V3)
             .unwrap();
 
-    // Mock V3 search with complex JQL (spaces become + in URL encoding)
+    // Mock V3 search with complex JQL (now includes auto-injected essential fields and maxResults)
     let mock = server
         .mock(
             "GET",
-            "/rest/api/3/search/jql?jql=project%3DTEST+AND+status%3DOpen+ORDER+BY+created+DESC",
+            "/rest/api/3/search/jql?fields=id%2Cself%2Ckey%2Csummary%2Cstatus&maxResults=50&jql=project%3DTEST+AND+status%3DOpen+ORDER+BY+created+DESC",
         )
         .with_status(200)
         .with_header("content-type", "application/json")
@@ -148,9 +149,7 @@ fn test_search_with_complex_jql_query() {
                 "id": "10001",
                 "fields": {"summary": "Test issue"}
             }],
-            "total": 1,
-            "startAt": 0,
-            "maxResults": 50
+            "isLast": true
         }"#,
         )
         .create();
@@ -164,7 +163,7 @@ fn test_search_with_complex_jql_query() {
     mock.assert();
     match result {
         Ok(search_results) => {
-            assert_eq!(search_results.total, 1);
+            assert_eq!(search_results.total, 1); // V3 conversion: 0 + 1 issue = 1 total
             assert_eq!(search_results.issues.len(), 1);
             assert_eq!(search_results.issues[0].key, "TEST-1");
         }
@@ -181,9 +180,12 @@ fn test_search_error_handling_v3_format() {
         Jira::with_search_api_version(server.url(), Credentials::Anonymous, SearchApiVersion::V3)
             .unwrap();
 
-    // Mock V3 error response format (spaces become + in URL encoding)
+    // Mock V3 error response format (now includes auto-injected essential fields and maxResults)
     let mock = server
-        .mock("GET", "/rest/api/3/search/jql?jql=invalid+jql")
+        .mock(
+            "GET",
+            "/rest/api/3/search/jql?maxResults=50&fields=id%2Cself%2Ckey%2Csummary%2Cstatus&jql=invalid+jql",
+        )
         .with_status(400)
         .with_header("content-type", "application/json")
         .with_body(r#"{"error": "Invalid JQL query"}"#)
@@ -265,17 +267,18 @@ async fn test_async_search_with_versioned_request() {
     )
     .unwrap();
 
-    // Mock async V3 search response
+    // Mock async V3 search response (now includes auto-injected essential fields and maxResults)
     let mock = server
-        .mock("GET", "/rest/api/3/search/jql?jql=project%3DTEST")
+        .mock(
+            "GET",
+            "/rest/api/3/search/jql?fields=id%2Cself%2Ckey%2Csummary%2Cstatus&maxResults=50&jql=project%3DTEST",
+        )
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(
             r#"{
             "issues": [],
-            "total": 0,
-            "startAt": 0,
-            "maxResults": 50
+            "isLast": true
         }"#,
         )
         .create_async()
@@ -287,5 +290,5 @@ async fn test_async_search_with_versioned_request() {
     mock.assert_async().await;
     assert!(result.is_ok());
     let search_results = result.unwrap();
-    assert_eq!(search_results.total, 0);
+    assert_eq!(search_results.total, 0); // V3 conversion: 0 + 0 issues = 0 total
 }

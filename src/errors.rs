@@ -41,4 +41,7 @@ pub enum Error {
     /// Builder validation error
     #[error("Builder validation failed: {message}")]
     BuilderError { message: String },
+    /// Invalid JQL query error
+    #[error("Invalid query: {message}")]
+    InvalidQuery { message: String },
 }

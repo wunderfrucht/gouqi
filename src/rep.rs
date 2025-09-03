@@ -552,6 +552,7 @@ pub struct IssueType {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SearchResults {
+    /// Total number of issues. Note: V3 API doesn't provide this, so it may be estimated
     pub total: u64,
     #[serde(rename = "maxResults")]
     pub max_results: u64,
@@ -559,6 +560,54 @@ pub struct SearchResults {
     pub start_at: u64,
     pub expand: Option<String>,
     pub issues: Vec<Issue>,
+    /// V3 API specific: Indicates if this is the last page of results
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_last_page: Option<bool>,
+    /// V3 API specific: Token for fetching the next page
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_page_token: Option<String>,
+    /// Indicates if the total count is accurate (false for V3 API)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_is_accurate: Option<bool>,
+}
+
+/// V3 Search Results format for the new /rest/api/3/search/jql endpoint
+#[derive(Serialize, Deserialize, Debug)]
+pub struct V3SearchResults {
+    pub issues: Vec<Issue>,
+    #[serde(rename = "isLast")]
+    pub is_last: bool,
+    #[serde(rename = "nextPageToken")]
+    pub next_page_token: Option<String>,
+}
+
+impl V3SearchResults {
+    /// Convert V3SearchResults to legacy SearchResults format for backward compatibility
+    pub fn to_search_results(self, start_at: u64, max_results: u64) -> SearchResults {
+        // V3 API doesn't provide total count. We provide a best-effort estimate
+        // but mark it as inaccurate. This maintains backward compatibility while
+        // being honest about the limitation.
+        let total = if self.is_last {
+            // If this is the last page, we know the exact total
+            start_at + self.issues.len() as u64
+        } else {
+            // If not last page, use a high estimate to indicate more pages exist
+            // Using u64::MAX would break existing code, so we estimate conservatively
+            // Assume at least one more full page exists
+            start_at + self.issues.len() as u64 + max_results
+        };
+
+        SearchResults {
+            total,
+            max_results,
+            start_at,
+            expand: None,
+            issues: self.issues,
+            is_last_page: Some(self.is_last),
+            next_page_token: self.next_page_token,
+            total_is_accurate: Some(false), // V3 never provides accurate totals
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]

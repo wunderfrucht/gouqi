@@ -567,6 +567,13 @@ pub mod error {
                     "type": "builder_error"
                 })),
             },
+            Error::InvalidQuery { message } => MCPError {
+                code: 400,
+                message: format!("Invalid query: {}", message),
+                data: Some(serde_json::json!({
+                    "type": "invalid_query_error"
+                })),
+            },
         }
     }
 }

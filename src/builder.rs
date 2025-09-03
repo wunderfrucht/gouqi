@@ -16,6 +16,7 @@ use crate::{
 #[derive(Default, Clone, Debug)]
 pub struct SearchOptions {
     params: HashMap<&'static str, String>,
+    fields_explicitly_set: bool,
 }
 
 impl SearchOptions {
@@ -40,6 +41,21 @@ impl SearchOptions {
     pub fn as_builder(&self) -> SearchOptionsBuilder {
         SearchOptionsBuilder::copy_from(self)
     }
+
+    /// Check if fields were explicitly set by the user
+    pub fn fields_explicitly_set(&self) -> bool {
+        self.fields_explicitly_set
+    }
+
+    /// Get the start_at value from search options
+    pub fn start_at(&self) -> Option<u64> {
+        self.params.get("startAt").and_then(|s| s.parse().ok())
+    }
+
+    /// Get the max_results value from search options  
+    pub fn max_results(&self) -> Option<u64> {
+        self.params.get("maxResults").and_then(|s| s.parse().ok())
+    }
 }
 
 /// A builder interface for search option. Typically this
@@ -47,6 +63,7 @@ impl SearchOptions {
 #[derive(Default, Debug)]
 pub struct SearchOptionsBuilder {
     params: HashMap<&'static str, String>,
+    fields_explicitly_set: bool,
 }
 
 impl SearchOptionsBuilder {
@@ -59,6 +76,7 @@ impl SearchOptionsBuilder {
     fn copy_from(search_options: &SearchOptions) -> SearchOptionsBuilder {
         SearchOptionsBuilder {
             params: search_options.params.clone(),
+            fields_explicitly_set: search_options.fields_explicitly_set,
         }
     }
 
@@ -73,6 +91,7 @@ impl SearchOptionsBuilder {
                 .collect::<Vec<String>>()
                 .join(","),
         );
+        self.fields_explicitly_set = true;
         self
     }
 
@@ -135,9 +154,40 @@ impl SearchOptionsBuilder {
         self
     }
 
+    /// Internal method for V3 API pagination with nextPageToken
+    /// This is not part of the public API and should only be used internally
+    #[doc(hidden)]
+    pub fn next_page_token(&mut self, token: &str) -> &mut SearchOptionsBuilder {
+        self.params.insert("nextPageToken", token.to_string());
+        self
+    }
+
+    /// Convenience method for essential fields needed for Issue struct compatibility
+    pub fn essential_fields(&mut self) -> &mut SearchOptionsBuilder {
+        self.fields(vec!["id", "self", "key", "summary", "status"])
+    }
+
+    /// Convenience method for commonly used fields
+    pub fn standard_fields(&mut self) -> &mut SearchOptionsBuilder {
+        self.fields(vec![
+            "id", "self", "key", "summary", "status", "assignee", "reporter", "created", "updated",
+        ])
+    }
+
+    /// Convenience method for all available fields
+    pub fn all_fields(&mut self) -> &mut SearchOptionsBuilder {
+        self.fields(vec!["*all"])
+    }
+
+    /// Convenience method for minimal response (only id field)
+    pub fn minimal_fields(&mut self) -> &mut SearchOptionsBuilder {
+        self.fields(vec!["id"])
+    }
+
     pub fn build(&self) -> SearchOptions {
         SearchOptions {
             params: self.params.clone(),
+            fields_explicitly_set: self.fields_explicitly_set,
         }
     }
 }
