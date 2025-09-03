@@ -1,6 +1,6 @@
 // Third party
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 use std::path::Path;
 use std::time::Duration;
 use url::Url;
@@ -15,7 +15,7 @@ use crate::{
 /// Options availble for search
 #[derive(Default, Clone, Debug)]
 pub struct SearchOptions {
-    params: HashMap<&'static str, String>,
+    params: BTreeMap<&'static str, String>,
     fields_explicitly_set: bool,
 }
 
@@ -62,7 +62,7 @@ impl SearchOptions {
 /// is initialized with SearchOptions::builder()
 #[derive(Default, Debug)]
 pub struct SearchOptionsBuilder {
-    params: HashMap<&'static str, String>,
+    params: BTreeMap<&'static str, String>,
     fields_explicitly_set: bool,
 }
 
