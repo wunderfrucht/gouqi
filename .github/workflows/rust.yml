@@ -168,7 +168,7 @@ jobs:
         run: cargo tarpaulin --out Xml --output-dir coverage --all-features -- --test-threads 1
         
       - name: Upload to codecov.io
-        uses: codecov/codecov-action@v5.5.0
+        uses: codecov/codecov-action@v5.5.1
         with:
           token: ${{secrets.CODECOV_TOKEN}}
           files: ./coverage/cobertura.xml
