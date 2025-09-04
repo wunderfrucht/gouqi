@@ -1,6 +1,6 @@
 // Third party
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::time::Duration;
 use url::Url;
