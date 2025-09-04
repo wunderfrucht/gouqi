@@ -4,3 +4,4 @@ Cargo.lock
 .DS_Store
 .vscode
 coverage/cobertura.xml
+.claude/settings.local.json
