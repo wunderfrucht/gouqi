@@ -300,6 +300,27 @@ fn test_error_mapping_method_not_allowed() {
 }
 
 #[test]
+fn test_error_mapping_invalid_query() {
+    let jira_error = Error::InvalidQuery {
+        message: "V3 API requires bounded queries. Please set maxResults parameter (max 5000)."
+            .to_string(),
+    };
+    let mcp_error = error::to_mcp_error(&jira_error);
+
+    assert_eq!(mcp_error.code, 400);
+    assert!(mcp_error.message.contains("Invalid query"));
+    assert!(
+        mcp_error
+            .message
+            .contains("V3 API requires bounded queries")
+    );
+    assert!(mcp_error.data.is_some());
+
+    let data = mcp_error.data.unwrap();
+    assert_eq!(data["type"], "invalid_query_error");
+}
+
+#[test]
 fn test_validate_issue_key_valid() {
     assert!(validation::validate_issue_key("DEMO-123").is_ok());
     assert!(validation::validate_issue_key("PROJECT-456").is_ok());
