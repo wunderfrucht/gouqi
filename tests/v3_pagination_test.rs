@@ -124,7 +124,7 @@ fn test_v3_sync_pagination_with_next_page_token() {
     let search_options = SearchOptions::builder().max_results(2).build();
 
     // Test iterator
-    let mut iter = jira.search().iter("project=TEST", &search_options).unwrap();
+    let iter = jira.search().iter("project=TEST", &search_options).unwrap();
 
     // Collect all issues
     let issues: Vec<_> = iter.collect();
@@ -460,7 +460,7 @@ fn test_v2_still_uses_start_at() {
     let jira = Jira::new(url, Credentials::Anonymous).unwrap();
     let search_options = SearchOptions::builder().max_results(2).start_at(0).build();
 
-    let mut iter = jira
+    let iter = jira
         .search()
         .iter("project=V2TEST", &search_options)
         .unwrap();
