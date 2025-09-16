@@ -434,22 +434,37 @@ impl Stream for AsyncIssueStream<'_> {
         }
 
         // Check if we need to fetch the next page
-        let more_pages = Self::more_pages(
-            self.current_results.issues.len() as u64,
-            self.current_results.start_at,
-            self.current_results.total,
-        );
+        // For V3 API, use is_last_page if available
+        let more_pages = if let Some(is_last) = self.current_results.is_last_page {
+            !is_last
+        } else {
+            // For V2 API or fallback, use traditional pagination logic
+            Self::more_pages(
+                self.current_results.issues.len() as u64,
+                self.current_results.start_at,
+                self.current_results.total,
+            )
+        };
 
         if more_pages {
             // Create a future to fetch the next page
             let jira = self.jira;
             let jql = self.jql.clone();
-            let next_options = self
-                .search_options
-                .as_builder()
-                .max_results(self.current_results.max_results)
-                .start_at(self.current_results.start_at + self.current_results.max_results)
-                .build();
+            let next_options = if let Some(ref token) = self.current_results.next_page_token {
+                // V3 API: Use nextPageToken for pagination
+                self.search_options
+                    .as_builder()
+                    .max_results(self.current_results.max_results)
+                    .next_page_token(token)
+                    .build()
+            } else {
+                // V2 API: Use startAt for pagination
+                self.search_options
+                    .as_builder()
+                    .max_results(self.current_results.max_results)
+                    .start_at(self.current_results.start_at + self.current_results.max_results)
+                    .build()
+            };
 
             let future = async move { jira.list(jql, &next_options).await };
 
