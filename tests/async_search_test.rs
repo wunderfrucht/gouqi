@@ -166,7 +166,7 @@ mod async_search_tests {
     async fn async_search_stream_multiple_pages() {
         // Need to add the StreamExt trait for .next() on stream
         use futures::stream::StreamExt;
-        use tokio::time::{timeout, Duration};
+        use tokio::time::{Duration, timeout};
 
         // Test actual multiple page streaming with V2 API
         let mut server = mockito::Server::new_async().await;
@@ -363,7 +363,7 @@ mod async_search_tests {
     async fn async_search_stream_v3_with_next_page_token() {
         // Test V3 async streaming with nextPageToken
         use futures::stream::StreamExt;
-        use tokio::time::{timeout, Duration};
+        use tokio::time::{Duration, timeout};
 
         let mut server = mockito::Server::new_async().await;
         let url = server.url();
