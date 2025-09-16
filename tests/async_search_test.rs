@@ -167,22 +167,25 @@ mod async_search_tests {
         // Need to add the StreamExt trait for .next() on stream
         use futures::stream::StreamExt;
 
-        // For now, we'll just test with fetching one page, which will pass
-        // since the multiple page streaming has a serialization issue that needs
-        // further investigation
+        // Test actual multiple page streaming with V2 API
         let mut server = mockito::Server::new_async().await;
         let url = server.url();
 
-        // Create a mock with two issues in one page
-        let mock = server
-            .mock("GET", "/rest/api/latest/search?jql=project%3DTEST")
+        // First page mock
+        let first_page = server
+            .mock("GET", "/rest/api/latest/search")
+            .match_query(mockito::Matcher::AllOf(vec![
+                mockito::Matcher::UrlEncoded("jql".into(), "project=TEST".into()),
+                mockito::Matcher::UrlEncoded("maxResults".into(), "2".into()),
+                mockito::Matcher::UrlEncoded("startAt".into(), "0".into()),
+            ]))
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(
                 json!({
                     "startAt": 0,
-                    "maxResults": 50,
-                    "total": 2,
+                    "maxResults": 2,
+                    "total": 4,
                     "expand": "names,schema",
                     "issues": [
                         {
@@ -222,28 +225,83 @@ mod async_search_tests {
             .create_async()
             .await;
 
+        // Second page mock
+        let second_page = server
+            .mock("GET", "/rest/api/latest/search")
+            .match_query(mockito::Matcher::AllOf(vec![
+                mockito::Matcher::UrlEncoded("jql".into(), "project=TEST".into()),
+                mockito::Matcher::UrlEncoded("maxResults".into(), "2".into()),
+                mockito::Matcher::UrlEncoded("startAt".into(), "2".into()),
+            ]))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(
+                json!({
+                    "startAt": 2,
+                    "maxResults": 2,
+                    "total": 4,
+                    "expand": "names,schema",
+                    "issues": [
+                        {
+                            "id": "10002",
+                            "key": "TEST-3",
+                            "self": "https://jira.example.com/rest/api/latest/issue/10002",
+                            "fields": {
+                                "summary": "Test issue 3",
+                                "status": {
+                                    "name": "Done",
+                                    "id": "3",
+                                    "description": "Done status",
+                                    "iconUrl": "https://jira.example.com/icons/status_done.png",
+                                    "self": "https://jira.example.com/rest/api/latest/status/3"
+                                }
+                            }
+                        },
+                        {
+                            "id": "10003",
+                            "key": "TEST-4",
+                            "self": "https://jira.example.com/rest/api/latest/issue/10003",
+                            "fields": {
+                                "summary": "Test issue 4",
+                                "status": {
+                                    "name": "Closed",
+                                    "id": "4",
+                                    "description": "Closed status",
+                                    "iconUrl": "https://jira.example.com/icons/status_closed.png",
+                                    "self": "https://jira.example.com/rest/api/latest/status/4"
+                                }
+                            }
+                        }
+                    ]
+                })
+                .to_string(),
+            )
+            .create_async()
+            .await;
+
         // Run the test
         let jira = AsyncJira::new(url, Credentials::Anonymous).unwrap();
         let search = jira.search();
 
-        let options = SearchOptions::default();
+        let options = SearchOptions::builder().max_results(2).start_at(0).build();
         let mut stream = search.stream("project=TEST", &options).await.unwrap();
 
-        // First issue
-        let issue1 = stream.next().await.unwrap();
-        assert_eq!(issue1.key, "TEST-1");
-        assert_eq!(issue1.summary().unwrap(), "Test issue 1");
+        // Collect all issues in order
+        let mut issues = Vec::new();
+        while let Some(issue) = stream.next().await {
+            issues.push(issue);
+        }
 
-        // Second issue
-        let issue2 = stream.next().await.unwrap();
-        assert_eq!(issue2.key, "TEST-2");
-        assert_eq!(issue2.summary().unwrap(), "Test issue 2");
+        // Verify we got all 4 issues in correct order
+        assert_eq!(issues.len(), 4);
+        assert_eq!(issues[0].key, "TEST-1");
+        assert_eq!(issues[1].key, "TEST-2");
+        assert_eq!(issues[2].key, "TEST-3");
+        assert_eq!(issues[3].key, "TEST-4");
 
-        // No more issues
-        assert!(stream.next().await.is_none());
-
-        // Assert the mock
-        mock.assert_async().await;
+        // Assert the mocks
+        first_page.assert_async().await;
+        second_page.assert_async().await;
     }
 
     #[tokio::test]
@@ -288,5 +346,109 @@ mod async_search_tests {
 
         // Use the async version of assert
         mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn async_search_stream_v3_with_next_page_token() {
+        // Test V3 async streaming with nextPageToken
+        use futures::stream::StreamExt;
+
+        let mut server = mockito::Server::new_async().await;
+        let url = server.url();
+
+        // First page with nextPageToken
+        let first_page = server
+            .mock("GET", "/rest/api/3/search/jql")
+            .match_query(mockito::Matcher::AllOf(vec![
+                mockito::Matcher::UrlEncoded("jql".into(), "project=V3TEST".into()),
+                mockito::Matcher::UrlEncoded("maxResults".into(), "2".into()),
+            ]))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(
+                json!({
+                    "issues": [
+                        {
+                            "id": "30001",
+                            "key": "V3TEST-1",
+                            "self": "https://jira.example.com/rest/api/3/issue/30001",
+                            "fields": {
+                                "summary": "V3 First issue"
+                            }
+                        },
+                        {
+                            "id": "30002",
+                            "key": "V3TEST-2",
+                            "self": "https://jira.example.com/rest/api/3/issue/30002",
+                            "fields": {
+                                "summary": "V3 Second issue"
+                            }
+                        }
+                    ],
+                    "isLast": false,
+                    "nextPageToken": "v3_token_2"
+                })
+                .to_string(),
+            )
+            .create_async()
+            .await;
+
+        // Second page with nextPageToken
+        let second_page = server
+            .mock("GET", "/rest/api/3/search/jql")
+            .match_query(mockito::Matcher::AllOf(vec![
+                mockito::Matcher::UrlEncoded("jql".into(), "project=V3TEST".into()),
+                mockito::Matcher::UrlEncoded("maxResults".into(), "2".into()),
+                mockito::Matcher::UrlEncoded("nextPageToken".into(), "v3_token_2".into()),
+            ]))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(
+                json!({
+                    "issues": [
+                        {
+                            "id": "30003",
+                            "key": "V3TEST-3",
+                            "self": "https://jira.example.com/rest/api/3/issue/30003",
+                            "fields": {
+                                "summary": "V3 Third issue"
+                            }
+                        }
+                    ],
+                    "isLast": true,
+                    "nextPageToken": null
+                })
+                .to_string(),
+            )
+            .create_async()
+            .await;
+
+        // Create V3 Jira client
+        let jira = AsyncJira::with_search_api_version(
+            url,
+            Credentials::Anonymous,
+            gouqi::core::SearchApiVersion::V3,
+        )
+        .unwrap();
+        let search = jira.search();
+
+        let options = SearchOptions::builder().max_results(2).build();
+        let mut stream = search.stream("project=V3TEST", &options).await.unwrap();
+
+        // Collect all issues
+        let mut issues = Vec::new();
+        while let Some(issue) = stream.next().await {
+            issues.push(issue);
+        }
+
+        // Verify we got all 3 issues
+        assert_eq!(issues.len(), 3);
+        assert_eq!(issues[0].key, "V3TEST-1");
+        assert_eq!(issues[1].key, "V3TEST-2");
+        assert_eq!(issues[2].key, "V3TEST-3");
+
+        // Verify all mocks were called
+        first_page.assert_async().await;
+        second_page.assert_async().await;
     }
 }
