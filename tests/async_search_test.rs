@@ -162,10 +162,11 @@ mod async_search_tests {
         mock.assert_async().await;
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn async_search_stream_multiple_pages() {
         // Need to add the StreamExt trait for .next() on stream
         use futures::stream::StreamExt;
+        use tokio::time::{timeout, Duration};
 
         // Test actual multiple page streaming with V2 API
         let mut server = mockito::Server::new_async().await;
@@ -286,11 +287,21 @@ mod async_search_tests {
         let options = SearchOptions::builder().max_results(2).start_at(0).build();
         let mut stream = search.stream("project=TEST", &options).await.unwrap();
 
-        // Collect all issues in order
-        let mut issues = Vec::new();
-        while let Some(issue) = stream.next().await {
-            issues.push(issue);
-        }
+        // Collect all issues in order with timeout to prevent CI hangs
+        let collect_future = async {
+            let mut issues = Vec::new();
+            while let Some(issue) = stream.next().await {
+                issues.push(issue);
+                if issues.len() > 10 {
+                    panic!("Collected too many issues - infinite loop detected");
+                }
+            }
+            issues
+        };
+
+        let issues = timeout(Duration::from_secs(30), collect_future)
+            .await
+            .expect("Test timed out after 30 seconds - likely infinite loop in pagination");
 
         // Verify we got all 4 issues in correct order
         assert_eq!(issues.len(), 4);
@@ -348,10 +359,11 @@ mod async_search_tests {
         mock.assert_async().await;
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn async_search_stream_v3_with_next_page_token() {
         // Test V3 async streaming with nextPageToken
         use futures::stream::StreamExt;
+        use tokio::time::{timeout, Duration};
 
         let mut server = mockito::Server::new_async().await;
         let url = server.url();
@@ -435,11 +447,18 @@ mod async_search_tests {
         let options = SearchOptions::builder().max_results(2).build();
         let mut stream = search.stream("project=V3TEST", &options).await.unwrap();
 
-        // Collect all issues
-        let mut issues = Vec::new();
-        while let Some(issue) = stream.next().await {
-            issues.push(issue);
-        }
+        // Collect all issues with timeout to prevent CI hangs
+        let collect_future = async {
+            let mut issues = Vec::new();
+            while let Some(issue) = stream.next().await {
+                issues.push(issue);
+            }
+            issues
+        };
+
+        let issues = timeout(Duration::from_secs(30), collect_future)
+            .await
+            .expect("V3 test timed out after 30 seconds - likely infinite loop in pagination");
 
         // Verify we got all 3 issues
         assert_eq!(issues.len(), 3);
