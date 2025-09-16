@@ -470,9 +470,9 @@ fn test_v2_still_uses_start_at() {
 
     assert_eq!(issues.len(), 3);
     // Note: Iterator uses .pop() across pages, resulting in this specific order
-    assert_eq!(issues[0].key, "V2TEST-2");  // Last from first page
-    assert_eq!(issues[1].key, "V2TEST-1");  // First from first page
-    assert_eq!(issues[2].key, "V2TEST-3");  // Last from second page
+    assert_eq!(issues[0].key, "V2TEST-2"); // Last from first page
+    assert_eq!(issues[1].key, "V2TEST-1"); // First from first page
+    assert_eq!(issues[2].key, "V2TEST-3"); // Last from second page
 
     first_page_mock.assert();
     second_page_mock.assert();
