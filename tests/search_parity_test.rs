@@ -31,10 +31,10 @@ fn create_test_issue(id: &str, key: &str, summary: &str) -> serde_json::Value {
 
 // Test V2 sync vs async pagination with startAt
 #[cfg(feature = "async")]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_v2_sync_async_parity() {
-    // Set up sync server
-    let mut sync_server = mockito::Server::new();
+    // Set up sync server (using async version but will test sync client)
+    let mut sync_server = mockito::Server::new_async().await;
     let sync_url = sync_server.url();
 
     // Set up async server
@@ -63,7 +63,8 @@ async fn test_v2_sync_async_parity() {
             })
             .to_string(),
         )
-        .create();
+        .create_async()
+        .await;
 
     // Second page for sync
     let sync_second_page = sync_server
@@ -87,7 +88,8 @@ async fn test_v2_sync_async_parity() {
             })
             .to_string(),
         )
-        .create();
+        .create_async()
+        .await;
 
     // First page for async
     let async_first_page = async_server
@@ -139,14 +141,17 @@ async fn test_v2_sync_async_parity() {
         .create_async()
         .await;
 
-    // Test sync
-    let sync_jira = Jira::new(sync_url, Credentials::Anonymous).unwrap();
-    let sync_options = SearchOptions::builder().max_results(2).start_at(0).build();
-    let sync_iter = sync_jira
-        .search()
-        .iter("project=PARITY", &sync_options)
-        .unwrap();
-    let sync_issues: Vec<Issue> = sync_iter.collect();
+    // Test sync using spawn_blocking
+    let sync_url_clone = sync_url.clone();
+    let sync_issues = tokio::task::spawn_blocking(move || {
+        let sync_jira = Jira::new(sync_url_clone, Credentials::Anonymous).unwrap();
+        let sync_options = SearchOptions::builder().max_results(2).start_at(0).build();
+        let sync_iter = sync_jira
+            .search()
+            .iter("project=PARITY", &sync_options)
+            .unwrap();
+        sync_iter.collect::<Vec<Issue>>()
+    }).await.unwrap();
 
     // Test async
     let async_jira = AsyncJira::new(async_url, Credentials::Anonymous).unwrap();
@@ -180,7 +185,7 @@ async fn test_v2_sync_async_parity() {
 
 // Test V3 sync vs async pagination with nextPageToken
 #[cfg(feature = "async")]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_v3_sync_async_parity() {
     // Set up sync server
     let mut sync_server = mockito::Server::new();
@@ -222,7 +227,8 @@ async fn test_v3_sync_async_parity() {
             })
             .to_string(),
         )
-        .create();
+        .create_async()
+        .await;
 
     // Second page for sync
     let sync_second_page = sync_server
@@ -244,7 +250,8 @@ async fn test_v3_sync_async_parity() {
             })
             .to_string(),
         )
-        .create();
+        .create_async()
+        .await;
 
     // First page for async
     let async_first_page = async_server
@@ -292,16 +299,19 @@ async fn test_v3_sync_async_parity() {
         .create_async()
         .await;
 
-    // Test sync V3
-    let sync_jira =
-        Jira::with_search_api_version(sync_url, Credentials::Anonymous, SearchApiVersion::V3)
+    // Test sync V3 using spawn_blocking
+    let sync_url_clone = sync_url.clone();
+    let sync_issues = tokio::task::spawn_blocking(move || {
+        let sync_jira =
+            Jira::with_search_api_version(sync_url_clone, Credentials::Anonymous, SearchApiVersion::V3)
+                .unwrap();
+        let sync_options = SearchOptions::builder().max_results(2).build();
+        let sync_iter = sync_jira
+            .search()
+            .iter("project=V3PARITY", &sync_options)
             .unwrap();
-    let sync_options = SearchOptions::builder().max_results(2).build();
-    let sync_iter = sync_jira
-        .search()
-        .iter("project=V3PARITY", &sync_options)
-        .unwrap();
-    let sync_issues: Vec<Issue> = sync_iter.collect();
+        sync_iter.collect::<Vec<Issue>>()
+    }).await.unwrap();
 
     // Test async V3
     let async_jira =
@@ -346,7 +356,7 @@ async fn test_v3_sync_async_parity() {
 
 // Test empty results parity
 #[cfg(feature = "async")]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_empty_results_parity() {
     // Set up sync server
     let mut sync_server = mockito::Server::new();
@@ -374,7 +384,8 @@ async fn test_empty_results_parity() {
             })
             .to_string(),
         )
-        .create();
+        .create_async()
+        .await;
 
     // Empty async response
     let async_empty = async_server
@@ -397,14 +408,17 @@ async fn test_empty_results_parity() {
         .create_async()
         .await;
 
-    // Test sync
-    let sync_jira = Jira::new(sync_url, Credentials::Anonymous).unwrap();
-    let default_options = SearchOptions::default();
-    let sync_iter = sync_jira
-        .search()
-        .iter("project=EMPTY", &default_options)
-        .unwrap();
-    let sync_issues: Vec<Issue> = sync_iter.collect();
+    // Test sync using spawn_blocking
+    let sync_url_clone = sync_url.clone();
+    let sync_issues = tokio::task::spawn_blocking(move || {
+        let sync_jira = Jira::new(sync_url_clone, Credentials::Anonymous).unwrap();
+        let default_options = SearchOptions::default();
+        let sync_iter = sync_jira
+            .search()
+            .iter("project=EMPTY", &default_options)
+            .unwrap();
+        sync_iter.collect::<Vec<Issue>>()
+    }).await.unwrap();
 
     // Test async
     let async_jira = AsyncJira::new(async_url, Credentials::Anonymous).unwrap();
@@ -430,7 +444,7 @@ async fn test_empty_results_parity() {
 
 // Test single page parity
 #[cfg(feature = "async")]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_single_page_parity() {
     // Set up servers
     let mut sync_server = mockito::Server::new();
@@ -460,7 +474,8 @@ async fn test_single_page_parity() {
             .to_string(),
         )
         .expect(1) // Should only be called once
-        .create();
+        .create_async()
+        .await;
 
     let async_single = async_server
         .mock("GET", "/rest/api/latest/search")
@@ -485,14 +500,17 @@ async fn test_single_page_parity() {
         .create_async()
         .await;
 
-    // Test sync
-    let sync_jira = Jira::new(sync_url, Credentials::Anonymous).unwrap();
-    let default_options = SearchOptions::default();
-    let sync_iter = sync_jira
-        .search()
-        .iter("project=SINGLE", &default_options)
-        .unwrap();
-    let sync_issues: Vec<Issue> = sync_iter.collect();
+    // Test sync using spawn_blocking
+    let sync_url_clone = sync_url.clone();
+    let sync_issues = tokio::task::spawn_blocking(move || {
+        let sync_jira = Jira::new(sync_url_clone, Credentials::Anonymous).unwrap();
+        let default_options = SearchOptions::default();
+        let sync_iter = sync_jira
+            .search()
+            .iter("project=SINGLE", &default_options)
+            .unwrap();
+        sync_iter.collect::<Vec<Issue>>()
+    }).await.unwrap();
 
     // Test async
     let async_jira = AsyncJira::new(async_url, Credentials::Anonymous).unwrap();
