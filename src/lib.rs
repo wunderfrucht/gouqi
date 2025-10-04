@@ -74,6 +74,8 @@ pub mod issues;
 pub mod mcp;
 #[cfg(feature = "metrics")]
 pub mod metrics;
+#[cfg(feature = "oauth")]
+pub mod oauth;
 #[cfg(any(feature = "metrics", feature = "cache"))]
 pub mod observability;
 pub mod projects;

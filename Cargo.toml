@@ -45,6 +45,11 @@ humantime = { version = "2.1", optional = true }
 uuid = { version = "1.0", features = ["v4"], optional = true }
 parking_lot = { version = "0.12", optional = true }
 once_cell = { version = "1.19", optional = true }
+# OAuth dependencies
+rsa = { version = "0.9", optional = true }
+sha1 = { version = "0.10", optional = true }
+base64 = { version = "0.22", optional = true }
+rand = { version = "0.8", optional = true }
 
 [features]
 default = []
@@ -56,7 +61,8 @@ metrics = ["uuid", "parking_lot", "once_cell"]
 cache = ["parking_lot", "once_cell"]
 observability = ["metrics", "cache", "uuid"]
 config-files = ["yaml", "toml-support"]
-full = ["async", "config-files", "humantime-support", "observability"]
+oauth = ["rsa", "sha1", "base64", "rand"]
+full = ["async", "config-files", "humantime-support", "observability", "oauth"]
 
 [package.metadata.clippy]
 warn = ["missing_panics_doc"]

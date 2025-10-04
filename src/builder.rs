@@ -541,6 +541,34 @@ impl JiraBuilder {
                     });
                 }
             }
+            #[cfg(feature = "oauth")]
+            Credentials::OAuth1a {
+                consumer_key,
+                private_key_pem,
+                access_token,
+                access_token_secret,
+            } => {
+                if consumer_key.is_empty() {
+                    return Err(Error::ConfigError {
+                        message: "OAuth consumer key cannot be empty".to_string(),
+                    });
+                }
+                if private_key_pem.is_empty() {
+                    return Err(Error::ConfigError {
+                        message: "OAuth private key cannot be empty".to_string(),
+                    });
+                }
+                if access_token.is_empty() {
+                    return Err(Error::ConfigError {
+                        message: "OAuth access token cannot be empty".to_string(),
+                    });
+                }
+                if access_token_secret.is_empty() {
+                    return Err(Error::ConfigError {
+                        message: "OAuth access token secret cannot be empty".to_string(),
+                    });
+                }
+            }
             Credentials::Anonymous => {
                 // Anonymous is always valid
             }
