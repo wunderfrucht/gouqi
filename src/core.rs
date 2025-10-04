@@ -58,17 +58,35 @@ pub enum SearchApiVersion {
 ///   like the [API documentation suggests](https://developer.atlassian.com/server/jira/platform/rest-apis/#authentication-and-authorization).
 /// - Cookie-based authentication (`Credentials::Cookie`) uses the JSESSIONID cookie as described in
 ///   [Cookie-based Authentication](https://developer.atlassian.com/server/jira/platform/cookie-based-authentication/).
+/// - OAuth 2.0 access tokens (Jira Cloud) should use [`Credentials::Bearer`] directly
+/// - OAuth 1.0a (Jira Server/Data Center) uses RSA-SHA1 request signing and requires the `oauth` feature
 #[derive(Clone, Debug)]
 pub enum Credentials {
     /// Use no authentication
     Anonymous,
     /// Username and password credentials (Personal Access Token count as a password)
     Basic(String, String),
-    /// Authentication via bearer token
+    /// Authentication via bearer token (includes OAuth 2.0 access tokens for Jira Cloud)
     Bearer(String),
     /// Cookie-based authentication using JSESSIONID
     Cookie(String),
-    // TODO: Add OAuth
+    /// OAuth 1.0a authentication for Jira Server/Data Center
+    ///
+    /// Uses RSA-SHA1 request signing. Requires the `oauth` feature to be enabled.
+    ///
+    /// # Fields
+    ///
+    /// - `consumer_key`: The OAuth consumer key
+    /// - `private_key_pem`: RSA private key in PEM format
+    /// - `access_token`: The OAuth access token
+    /// - `access_token_secret`: The OAuth access token secret
+    #[cfg(feature = "oauth")]
+    OAuth1a {
+        consumer_key: String,
+        private_key_pem: String,
+        access_token: String,
+        access_token_secret: String,
+    },
 }
 
 /// Common data required for both sync and async clients
@@ -344,7 +362,44 @@ impl ClientCore {
         self.cache.stats()
     }
 
+    /// Generate OAuth 1.0a authorization header if using OAuth credentials
+    ///
+    /// # Arguments
+    ///
+    /// * `method` - HTTP method (GET, POST, etc.)
+    /// * `url` - Full request URL
+    ///
+    /// # Returns
+    ///
+    /// Optional OAuth authorization header value
+    #[cfg(feature = "oauth")]
+    pub fn get_oauth_header(&self, method: &str, url: &str) -> Result<Option<String>> {
+        match &self.credentials {
+            Credentials::OAuth1a {
+                consumer_key,
+                private_key_pem,
+                access_token,
+                access_token_secret,
+            } => {
+                let header = crate::oauth::generate_oauth_header(
+                    method,
+                    url,
+                    consumer_key,
+                    private_key_pem,
+                    access_token,
+                    access_token_secret,
+                )?;
+                Ok(Some(header))
+            }
+            _ => Ok(None),
+        }
+    }
+
     /// Apply credentials to a sync request builder
+    ///
+    /// Note: For OAuth 1.0a, the Authorization header must be set separately using
+    /// `get_oauth_header()` before creating the request builder, as signature generation
+    /// requires knowledge of the HTTP method and URL.
     pub fn apply_credentials_sync(
         &self,
         builder: reqwest::blocking::RequestBuilder,
@@ -359,10 +414,20 @@ impl ClientCore {
                 reqwest::header::COOKIE,
                 format!("JSESSIONID={}", jsessionid),
             ),
+            #[cfg(feature = "oauth")]
+            Credentials::OAuth1a { .. } => {
+                // OAuth header is applied separately via get_oauth_header()
+                // because it needs method and URL information
+                builder
+            }
         }
     }
 
     /// Apply credentials to an async request builder
+    ///
+    /// Note: For OAuth 1.0a, the Authorization header must be set separately using
+    /// `get_oauth_header()` before creating the request builder, as signature generation
+    /// requires knowledge of the HTTP method and URL.
     pub fn apply_credentials_async(
         &self,
         builder: reqwest::RequestBuilder,
@@ -377,6 +442,12 @@ impl ClientCore {
                 reqwest::header::COOKIE,
                 format!("JSESSIONID={}", jsessionid),
             ),
+            #[cfg(feature = "oauth")]
+            Credentials::OAuth1a { .. } => {
+                // OAuth header is applied separately via get_oauth_header()
+                // because it needs method and URL information
+                builder
+            }
         }
     }
 

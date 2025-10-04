@@ -574,6 +574,13 @@ pub mod error {
                     "type": "invalid_query_error"
                 })),
             },
+            Error::OAuthError { message } => MCPError {
+                code: 401,
+                message: format!("OAuth authentication error: {}", message),
+                data: Some(serde_json::json!({
+                    "type": "oauth_error"
+                })),
+            },
         }
     }
 }

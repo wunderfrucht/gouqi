@@ -44,4 +44,7 @@ pub enum Error {
     /// Invalid JQL query error
     #[error("Invalid query: {message}")]
     InvalidQuery { message: String },
+    /// OAuth authentication error
+    #[error("OAuth authentication failed: {message}")]
+    OAuthError { message: String },
 }
