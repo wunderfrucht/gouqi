@@ -357,6 +357,35 @@ impl Jira {
             .await
     }
 
+    /// Sends a POST request with a specific API version using the async Jira client.
+    ///
+    /// # Arguments
+    ///
+    /// * `api_name` - Name of the API: like "agile" or "api"
+    /// * `version` - API version to use (e.g., Some("3"), Some("latest"), None for default)
+    /// * `endpoint` - API endpoint path
+    /// * `body` - Request body to serialize and send
+    ///
+    /// # Returns
+    ///
+    /// `Result<D>` - Response deserialized into type `D`
+    pub async fn post_versioned<D, S>(
+        &self,
+        api_name: &str,
+        version: Option<&str>,
+        endpoint: &str,
+        body: S,
+    ) -> Result<D>
+    where
+        D: DeserializeOwned,
+        S: Serialize,
+    {
+        let data = self.core.prepare_json_body(body)?;
+        debug!("Json POST request sent with API version {:?}", version);
+        self.request_versioned::<D>(Method::POST, api_name, version, endpoint, Some(data))
+            .await
+    }
+
     /// Sends a POST request using the async Jira client.
     ///
     /// # Arguments

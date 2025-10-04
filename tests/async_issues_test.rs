@@ -195,6 +195,7 @@ mod async_issues_tests {
         // Test AddComment creation
         let comment = AddComment {
             body: "Test comment".to_string(),
+            visibility: None,
         };
         assert_eq!(comment.body, "Test comment");
 
