@@ -11,10 +11,14 @@ fn setup_mock_server() -> (ServerGuard, Jira) {
 }
 
 // Helper to create a Cloud Jira instance with mock server
+#[allow(dead_code)]
 fn setup_cloud_mock_server() -> (ServerGuard, Jira) {
     let server = Server::new();
     // Override the URL to appear like Cloud
-    let cloud_url = format!("{}", server.url()).replace("127.0.0.1", "test.atlassian.net");
+    let cloud_url = server
+        .url()
+        .to_string()
+        .replace("127.0.0.1", "test.atlassian.net");
     let jira = Jira::new(&cloud_url, Credentials::Anonymous).unwrap();
     (server, jira)
 }
@@ -118,11 +122,10 @@ fn test_comment_v3_cloud_url_detection() {
     // Note: In the mock environment, we can't fully test the Cloud routing,
     // but we can verify the URL detection logic
 
-    let cloud_jira = Jira::new("https://mycompany.atlassian.net", Credentials::Anonymous).unwrap();
+    let _cloud_jira = Jira::new("https://mycompany.atlassian.net", Credentials::Anonymous).unwrap();
 
     // The Jira client should be created successfully with a Cloud URL
     // In production, this would automatically use V3/ADF format
-    assert!(true, "Cloud Jira client created successfully");
 }
 
 #[test]
@@ -216,9 +219,8 @@ fn test_comment_error_handling() {
 #[test]
 fn test_server_url_creation() {
     // Test creating a Jira client with a self-hosted URL
-    let jira = Jira::new("https://jira.example.com", Credentials::Anonymous).unwrap();
+    let _jira = Jira::new("https://jira.example.com", Credentials::Anonymous).unwrap();
 
     // The Jira client should be created successfully with a self-hosted URL
     // In production, this would automatically use V2/plain text format
-    assert!(true, "Self-hosted Jira client created successfully");
 }

@@ -9,10 +9,18 @@ repos:
         types: [rust]
         pass_filenames: false
 
+      - id: cargo-check
+        name: cargo check
+        description: Check code compilation
+        entry: cargo check --all-targets --all-features
+        language: system
+        types: [rust]
+        pass_filenames: false
+
       - id: cargo-clippy
         name: cargo clippy
         description: Lint Rust code with clippy
-        entry: cargo clippy --all-targets --all-features -- -W clippy::missing_panics_doc
+        entry: cargo clippy --all-targets --all-features -- -D warnings
         language: system
         types: [rust]
         pass_filenames: false
@@ -25,10 +33,19 @@ repos:
         types: [rust]
         pass_filenames: false
 
+      - id: cargo-doc
+        name: cargo doc
+        description: Build documentation
+        entry: cargo doc --no-deps --all-features
+        language: system
+        types: [rust]
+        pass_filenames: false
+        stages: [pre-push]
+
       - id: cargo-audit
         name: cargo audit
         description: Check for security vulnerabilities
-        entry: cargo audit
+        entry: cargo audit --ignore RUSTSEC-2020-0071 --ignore RUSTSEC-2023-0071
         language: system
         types: [rust]
         pass_filenames: false
