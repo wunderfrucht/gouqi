@@ -1,10 +1,10 @@
-// Board tests are temporarily disabled due to mock structure issues that need investigation
-// This file contains comprehensive tests for board operations but needs fixing before enabling
+// Comprehensive tests for board operations
 
-/*
+use gouqi::boards::{Board, BoardResults};
+use gouqi::{Credentials, Jira, SearchOptions};
+use serde_json::json;
 
 #[test]
-#[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_creation() {
     let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
     let boards = jira.boards();
@@ -14,12 +14,11 @@ fn test_board_creation() {
 }
 
 #[test]
-#[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_get_success() {
     let mut server = mockito::Server::new();
 
     let mock_board = json!({
-        "self": format!("{}/rest/agile/1.0/board/1", server.url()),
+        "self": format!("{}/rest/agile/latest/board/1", server.url()),
         "id": 1,
         "name": "Test Board",
         "type": "scrum",
@@ -33,7 +32,7 @@ fn test_board_get_success() {
     });
 
     server
-        .mock("GET", "/rest/agile/1.0/board/1")
+        .mock("GET", "/rest/agile/latest/board/1")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_board.to_string())
@@ -58,12 +57,11 @@ fn test_board_get_success() {
 }
 
 #[test]
-#[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_get_not_found() {
     let mut server = mockito::Server::new();
 
     server
-        .mock("GET", "/rest/agile/1.0/board/999")
+        .mock("GET", "/rest/agile/latest/board/999")
         .with_status(404)
         .with_header("content-type", "application/json")
         .with_body(json!({"errorMessages": ["Board does not exist"]}).to_string())
@@ -76,7 +74,6 @@ fn test_board_get_not_found() {
 }
 
 #[test]
-#[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_list_success() {
     let mut server = mockito::Server::new();
 
@@ -86,13 +83,13 @@ fn test_board_list_success() {
         "isLast": true,
         "values": [
             {
-                "self": format!("{}/rest/agile/1.0/board/1", server.url()),
+                "self": format!("{}/rest/agile/latest/board/1", server.url()),
                 "id": 1,
                 "name": "Scrum Board",
                 "type": "scrum"
             },
             {
-                "self": format!("{}/rest/agile/1.0/board/2", server.url()),
+                "self": format!("{}/rest/agile/latest/board/2", server.url()),
                 "id": 2,
                 "name": "Kanban Board",
                 "type": "kanban"
@@ -101,7 +98,7 @@ fn test_board_list_success() {
     });
 
     server
-        .mock("GET", "/rest/agile/1.0/board?")
+        .mock("GET", "/rest/agile/latest/board?")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_boards.to_string())
@@ -128,7 +125,6 @@ fn test_board_list_success() {
 }
 
 #[test]
-#[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_list_with_search_options() {
     let mut server = mockito::Server::new();
 
@@ -138,7 +134,7 @@ fn test_board_list_with_search_options() {
         "isLast": false,
         "values": [
             {
-                "self": format!("{}/rest/agile/1.0/board/3", server.url()),
+                "self": format!("{}/rest/agile/latest/board/3", server.url()),
                 "id": 3,
                 "name": "Test Board 3",
                 "type": "scrum"
@@ -147,7 +143,7 @@ fn test_board_list_with_search_options() {
     });
 
     server
-        .mock("GET", "/rest/agile/1.0/board?maxResults=10&startAt=5")
+        .mock("GET", "/rest/agile/latest/board?maxResults=10&startAt=5")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_boards.to_string())
@@ -171,7 +167,6 @@ fn test_board_list_with_search_options() {
 }
 
 #[test]
-#[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_iterator_single_page() {
     let mut server = mockito::Server::new();
 
@@ -181,13 +176,13 @@ fn test_board_iterator_single_page() {
         "isLast": true,
         "values": [
             {
-                "self": format!("{}/rest/agile/1.0/board/1", server.url()),
+                "self": format!("{}/rest/agile/latest/board/1", server.url()),
                 "id": 1,
                 "name": "Board 1",
                 "type": "scrum"
             },
             {
-                "self": format!("{}/rest/agile/1.0/board/2", server.url()),
+                "self": format!("{}/rest/agile/latest/board/2", server.url()),
                 "id": 2,
                 "name": "Board 2",
                 "type": "kanban"
@@ -196,7 +191,7 @@ fn test_board_iterator_single_page() {
     });
 
     server
-        .mock("GET", "/rest/agile/1.0/board?")
+        .mock("GET", "/rest/agile/latest/board?")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(mock_boards.to_string())
@@ -224,7 +219,6 @@ fn test_board_iterator_single_page() {
 }
 
 #[test]
-#[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_iterator_multiple_pages() {
     let mut server = mockito::Server::new();
 
@@ -235,7 +229,7 @@ fn test_board_iterator_multiple_pages() {
         "isLast": false,
         "values": [
             {
-                "self": format!("{}/rest/agile/1.0/board/1", server.url()),
+                "self": format!("{}/rest/agile/latest/board/1", server.url()),
                 "id": 1,
                 "name": "Board 1",
                 "type": "scrum"
@@ -250,7 +244,7 @@ fn test_board_iterator_multiple_pages() {
         "isLast": true,
         "values": [
             {
-                "self": format!("{}/rest/agile/1.0/board/2", server.url()),
+                "self": format!("{}/rest/agile/latest/board/2", server.url()),
                 "id": 2,
                 "name": "Board 2",
                 "type": "kanban"
@@ -259,24 +253,21 @@ fn test_board_iterator_multiple_pages() {
     });
 
     server
-        .mock("GET", "/rest/agile/1.0/board?maxResults=1")
+        .mock("GET", "/rest/agile/latest/board?maxResults=1")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(first_page.to_string())
         .create();
 
     server
-        .mock("GET", "/rest/agile/1.0/board?maxResults=1&startAt=1")
+        .mock("GET", "/rest/agile/latest/board?maxResults=1&startAt=1")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(second_page.to_string())
         .create();
 
     let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
-    let options = SearchOptions::default()
-        .as_builder()
-        .max_results(1)
-        .build();
+    let options = SearchOptions::default().as_builder().max_results(1).build();
 
     let mut iter = jira.boards().iter(&options).unwrap();
 
@@ -297,7 +288,6 @@ fn test_board_iterator_multiple_pages() {
 }
 
 #[test]
-#[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_iterator_error_handling() {
     let mut server = mockito::Server::new();
 
@@ -308,7 +298,7 @@ fn test_board_iterator_error_handling() {
         "isLast": false,
         "values": [
             {
-                "self": format!("{}/rest/agile/1.0/board/1", server.url()),
+                "self": format!("{}/rest/agile/latest/board/1", server.url()),
                 "id": 1,
                 "name": "Board 1",
                 "type": "scrum"
@@ -317,7 +307,7 @@ fn test_board_iterator_error_handling() {
     });
 
     server
-        .mock("GET", "/rest/agile/1.0/board?maxResults=1")
+        .mock("GET", "/rest/agile/latest/board?maxResults=1")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(first_page.to_string())
@@ -325,17 +315,14 @@ fn test_board_iterator_error_handling() {
 
     // Second request fails
     server
-        .mock("GET", "/rest/agile/1.0/board?maxResults=1&startAt=1")
+        .mock("GET", "/rest/agile/latest/board?maxResults=1&startAt=1")
         .with_status(500)
         .with_header("content-type", "application/json")
         .with_body(json!({"errorMessages": ["Internal server error"]}).to_string())
         .create();
 
     let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
-    let options = SearchOptions::default()
-        .as_builder()
-        .max_results(1)
-        .build();
+    let options = SearchOptions::default().as_builder().max_results(1).build();
 
     let mut iter = jira.boards().iter(&options).unwrap();
 
@@ -350,11 +337,10 @@ fn test_board_iterator_error_handling() {
 }
 
 #[test]
-#[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_deserialize_minimal() {
     // Test board with minimal fields
     let json_data = json!({
-        "self": "http://localhost/rest/agile/1.0/board/1",
+        "self": "http://localhost/rest/agile/latest/board/1",
         "id": 1,
         "name": "Minimal Board",
         "type": "scrum"
@@ -368,11 +354,10 @@ fn test_board_deserialize_minimal() {
 }
 
 #[test]
-#[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_location_deserialize_partial() {
     // Test location with only some fields
     let json_data = json!({
-        "self": "http://localhost/rest/agile/1.0/board/1",
+        "self": "http://localhost/rest/agile/latest/board/1",
         "id": 1,
         "name": "Board with Location",
         "type": "kanban",
@@ -394,7 +379,6 @@ fn test_location_deserialize_partial() {
 }
 
 #[test]
-#[ignore = "Board tests temporarily disabled due to mock structure issues"]
 fn test_board_results_deserialize() {
     let json_data = json!({
         "maxResults": 25,
@@ -409,5 +393,3 @@ fn test_board_results_deserialize() {
     assert!(!results.is_last);
     assert!(results.values.is_empty());
 }
-
-*/

@@ -563,6 +563,64 @@ pub struct LinkType {
     pub self_link: String,
 }
 
+/// Request to create an issue link
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateIssueLinkInput {
+    #[serde(rename = "type")]
+    pub link_type: IssueLinkType,
+    pub inward_issue: IssueKey,
+    pub outward_issue: IssueKey,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<LinkComment>,
+}
+
+/// Simple issue link type reference for creating links
+#[derive(Serialize, Debug)]
+pub struct IssueLinkType {
+    pub name: String,
+}
+
+/// Simple issue key reference for creating links
+#[derive(Serialize, Debug)]
+pub struct IssueKey {
+    pub key: String,
+}
+
+/// Optional comment when creating an issue link
+#[derive(Serialize, Debug)]
+pub struct LinkComment {
+    pub body: String,
+}
+
+impl CreateIssueLinkInput {
+    /// Create a new issue link
+    pub fn new(
+        link_type: impl Into<String>,
+        inward: impl Into<String>,
+        outward: impl Into<String>,
+    ) -> Self {
+        Self {
+            link_type: IssueLinkType {
+                name: link_type.into(),
+            },
+            inward_issue: IssueKey { key: inward.into() },
+            outward_issue: IssueKey {
+                key: outward.into(),
+            },
+            comment: None,
+        }
+    }
+
+    /// Add a comment to the issue link
+    pub fn with_comment(mut self, comment: impl Into<String>) -> Self {
+        self.comment = Some(LinkComment {
+            body: comment.into(),
+        });
+        self
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Version {
     pub archived: bool,
@@ -822,6 +880,102 @@ pub struct Resolution {
 #[derive(Serialize, Clone, Debug)]
 pub struct Transition {
     pub id: String,
+}
+
+/// Represents a worklog entry on an issue
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Worklog {
+    #[serde(rename = "self")]
+    pub self_link: String,
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub author: Option<User>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub update_author: Option<User>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "time::serde::iso8601::option"
+    )]
+    pub created: Option<OffsetDateTime>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "time::serde::iso8601::option"
+    )]
+    pub updated: Option<OffsetDateTime>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "time::serde::iso8601::option"
+    )]
+    pub started: Option<OffsetDateTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub time_spent: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub time_spent_seconds: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issue_id: Option<String>,
+}
+
+/// Request to create or update a worklog
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WorklogInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        with = "time::serde::iso8601::option"
+    )]
+    pub started: Option<OffsetDateTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub time_spent_seconds: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub time_spent: Option<String>,
+}
+
+impl WorklogInput {
+    /// Create a new worklog with time spent in seconds
+    pub fn new(time_spent_seconds: u64) -> Self {
+        Self {
+            comment: None,
+            started: None,
+            time_spent_seconds: Some(time_spent_seconds),
+            time_spent: None,
+        }
+    }
+
+    /// Set a comment for the worklog
+    pub fn with_comment(mut self, comment: impl Into<String>) -> Self {
+        self.comment = Some(comment.into());
+        self
+    }
+
+    /// Set when the work was started
+    pub fn with_started(mut self, started: OffsetDateTime) -> Self {
+        self.started = Some(started);
+        self
+    }
+
+    /// Set time spent as a string (e.g., "3h 20m")
+    pub fn with_time_spent(mut self, time_spent: impl Into<String>) -> Self {
+        self.time_spent = Some(time_spent.into());
+        self
+    }
+}
+
+/// Response containing a list of worklogs
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct WorklogList {
+    pub start_at: u64,
+    pub max_results: u64,
+    pub total: u64,
+    pub worklogs: Vec<Worklog>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

@@ -162,6 +162,16 @@ impl Jira {
         crate::issues::AsyncIssues::new(self)
     }
 
+    /// Returns the issue links interface for managing links between issues asynchronously
+    ///
+    /// # Returns
+    ///
+    /// An `AsyncIssueLinks` instance configured with this client
+    #[tracing::instrument]
+    pub fn issue_links(&self) -> crate::issue_links::AsyncIssueLinks {
+        crate::issue_links::AsyncIssueLinks::new(self)
+    }
+
     /// Returns the projects interface for working with Jira projects asynchronously
     ///
     /// Projects in Jira contain issues and define the scope of work. This interface
@@ -227,6 +237,53 @@ impl Jira {
     #[tracing::instrument]
     pub fn attachments(&self) -> crate::attachments::AsyncAttachments {
         crate::attachments::AsyncAttachments::new(self)
+    }
+
+    /// Returns the components interface for working with Jira project components
+    ///
+    /// # Returns
+    ///
+    /// An `AsyncComponents` instance configured with this client
+    #[tracing::instrument]
+    pub fn components(&self) -> crate::components::AsyncComponents {
+        crate::components::AsyncComponents::new(self)
+    }
+
+    /// Returns the versions interface for working with Jira project versions
+    ///
+    /// # Returns
+    ///
+    /// An `AsyncVersions` instance configured with this client
+    #[tracing::instrument]
+    pub fn versions(&self) -> crate::versions::AsyncVersions {
+        crate::versions::AsyncVersions::new(self)
+    }
+
+    /// Returns the sprints interface for working with Jira sprints
+    ///
+    /// # Returns
+    ///
+    /// An `AsyncSprints` instance configured with this client
+    #[tracing::instrument]
+    pub fn sprints(&self) -> crate::sprints::AsyncSprints {
+        crate::sprints::AsyncSprints::new(self)
+    }
+
+    /// Returns the transitions interface for a specific issue
+    ///
+    /// # Arguments
+    ///
+    /// * `issue_key` - The key of the issue (e.g., "PROJ-123")
+    ///
+    /// # Returns
+    ///
+    /// An `AsyncTransitions` instance configured for the specified issue
+    #[tracing::instrument]
+    pub fn transitions<K>(&self, issue_key: K) -> crate::transitions::AsyncTransitions
+    where
+        K: Into<String> + std::fmt::Debug,
+    {
+        crate::transitions::AsyncTransitions::new(self, issue_key)
     }
 
     /// Asynchronously retrieves the current user's session information from Jira

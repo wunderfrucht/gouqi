@@ -262,7 +262,7 @@ fn test_issues_edit() {
     );
     let edit_issue = gouqi::issues::EditIssue { fields };
 
-    let result = jira.issues().edit("TEST-1", edit_issue);
+    let result = jira.issues().update("TEST-1", edit_issue);
 
     assert!(result.is_ok());
 }

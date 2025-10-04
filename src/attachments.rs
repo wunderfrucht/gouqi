@@ -69,10 +69,8 @@ impl Attachments {
     where
         I: Into<String>,
     {
-        let _res: Option<AttachmentResponse> = self
-            .jira
-            .delete("api", &format!("/attachment/{}", id.into()))?;
-
+        self.jira
+            .delete::<crate::EmptyResponse>("api", &format!("/attachment/{}", id.into()))?;
         Ok(())
     }
 
@@ -148,11 +146,9 @@ impl AsyncAttachments {
     where
         I: Into<String>,
     {
-        let _res: Option<AttachmentResponse> = self
-            .jira
-            .delete("api", &format!("/attachment/{}", id.into()))
+        self.jira
+            .delete::<crate::EmptyResponse>("api", &format!("/attachment/{}", id.into()))
             .await?;
-
         Ok(())
     }
 

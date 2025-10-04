@@ -142,7 +142,10 @@ impl Iterator for BoardsIter<'_> {
                         self.results = new_results;
                         self.results.values.pop()
                     }
-                    _ => None,
+                    Err(e) => {
+                        tracing::error!("Boards pagination failed: {}", e);
+                        None
+                    }
                 }
             } else {
                 None

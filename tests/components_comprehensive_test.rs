@@ -196,7 +196,7 @@ fn test_component_edit_success() {
         project: "TEST".to_string(),
     };
 
-    let result = jira.components().edit("10000", edit_data);
+    let result = jira.components().update("10000", edit_data);
 
     assert!(result.is_ok());
     let response = result.unwrap();
@@ -227,7 +227,7 @@ fn test_component_edit_not_found() {
         project: "TEST".to_string(),
     };
 
-    let result = jira.components().edit("99999", edit_data);
+    let result = jira.components().update("99999", edit_data);
 
     assert!(result.is_err());
 }
