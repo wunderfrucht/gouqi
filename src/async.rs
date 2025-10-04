@@ -556,11 +556,21 @@ impl Jira {
                 "Building request URL"
             );
 
+            // Generate OAuth header if using OAuth 1.0a
+            #[cfg(feature = "oauth")]
+            let oauth_header = self.core.get_oauth_header(method.as_str(), url.as_str())?;
+
             let mut req = self
                 .client
                 .request(method.clone(), url)
                 .header(CONTENT_TYPE, "application/json")
                 .header("X-Correlation-ID", &ctx.correlation_id);
+
+            // Apply OAuth header if present
+            #[cfg(feature = "oauth")]
+            if let Some(header) = oauth_header {
+                req = req.header(reqwest::header::AUTHORIZATION, header);
+            }
 
             req = self.core.apply_credentials_async(req);
 
