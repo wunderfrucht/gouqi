@@ -18,7 +18,7 @@ use crate::search::Search;
 use crate::sprints::Sprints;
 use crate::transitions::Transitions;
 use crate::versions::Versions;
-use crate::{Credentials, Result};
+use crate::{Credentials, Error, Result};
 
 /// Entrypoint into client interface
 /// <https://docs.atlassian.com/jira/REST/latest/>
@@ -416,6 +416,88 @@ impl Jira {
         let data = self.core.prepare_json_body(body)?;
         debug!("Json POST request sent with API version {:?}", version);
         self.request_versioned::<D>(Method::POST, api_name, version, endpoint, Some(data))
+    }
+
+    /// Sends a GET request and returns raw bytes (for downloading files)
+    ///
+    /// # Arguments
+    ///
+    /// * `api_name` - Name of the API: like "agile" or "api"
+    /// * `endpoint` - API endpoint path
+    ///
+    /// # Returns
+    ///
+    /// `Result<Vec<u8>>` - Raw response bytes
+    pub fn get_bytes(&self, api_name: &str, endpoint: &str) -> Result<Vec<u8>> {
+        let ctx = RequestContext::new("GET", endpoint);
+        let _span = ctx.create_span().entered();
+
+        let url = self.core.build_url(api_name, endpoint)?;
+        debug!(
+            correlation_id = %ctx.correlation_id,
+            url = %url,
+            "Building request URL for bytes download"
+        );
+
+        let mut req = self
+            .client
+            .request(Method::GET, url)
+            .header("X-Correlation-ID", &ctx.correlation_id);
+
+        req = self.core.apply_credentials_sync(req);
+
+        debug!(
+            correlation_id = %ctx.correlation_id,
+            "Sending bytes request"
+        );
+
+        let result = (|| {
+            let mut res = req.send()?;
+            let status = res.status();
+
+            if !status.is_success() {
+                let mut response_body = String::new();
+                res.read_to_string(&mut response_body)?;
+
+                debug!(
+                    correlation_id = %ctx.correlation_id,
+                    status = %status,
+                    response_size = response_body.len(),
+                    "Received error response"
+                );
+
+                return Err(match status {
+                    reqwest::StatusCode::UNAUTHORIZED => Error::Unauthorized,
+                    reqwest::StatusCode::METHOD_NOT_ALLOWED => Error::MethodNotAllowed,
+                    reqwest::StatusCode::NOT_FOUND => Error::NotFound,
+                    client_err if client_err.is_client_error() => Error::Fault {
+                        code: status,
+                        errors: serde_json::from_str(&response_body)?,
+                    },
+                    _ => Error::Fault {
+                        code: status,
+                        errors: serde_json::from_str(&response_body)?,
+                    },
+                });
+            }
+
+            let mut bytes = Vec::new();
+            res.read_to_end(&mut bytes)?;
+
+            debug!(
+                correlation_id = %ctx.correlation_id,
+                status = %status,
+                bytes_size = bytes.len(),
+                "Received bytes response"
+            );
+
+            Ok(bytes)
+        })();
+
+        let success = result.is_ok();
+        ctx.finish(success);
+
+        result
     }
 
     /// Sends a POST request using the Jira client.

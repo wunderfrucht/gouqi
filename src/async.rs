@@ -52,7 +52,7 @@ use serde::de::DeserializeOwned;
 
 use crate::core::{ClientCore, RequestContext};
 use crate::rep::Session;
-use crate::{Credentials, Result};
+use crate::{Credentials, Error, Result};
 
 /// Entrypoint into async client interface
 /// <https://docs.atlassian.com/jira/REST/latest/>
@@ -217,6 +217,16 @@ impl Jira {
     #[tracing::instrument]
     pub fn boards(&self) -> crate::boards::AsyncBoards<'_> {
         crate::boards::AsyncBoards::new(self)
+    }
+
+    /// Returns the attachments interface for working with Jira attachments
+    ///
+    /// # Returns
+    ///
+    /// An `AsyncAttachments` instance configured with this client
+    #[tracing::instrument]
+    pub fn attachments(&self) -> crate::attachments::AsyncAttachments {
+        crate::attachments::AsyncAttachments::new(self)
     }
 
     /// Asynchronously retrieves the current user's session information from Jira
@@ -384,6 +394,87 @@ impl Jira {
         debug!("Json POST request sent with API version {:?}", version);
         self.request_versioned::<D>(Method::POST, api_name, version, endpoint, Some(data))
             .await
+    }
+
+    /// Sends a GET request and returns raw bytes (for downloading files)
+    ///
+    /// # Arguments
+    ///
+    /// * `api_name` - Name of the API: like "agile" or "api"
+    /// * `endpoint` - API endpoint path
+    ///
+    /// # Returns
+    ///
+    /// `Result<Vec<u8>>` - Raw response bytes
+    pub async fn get_bytes(&self, api_name: &str, endpoint: &str) -> Result<Vec<u8>> {
+        let ctx = RequestContext::new("GET", endpoint);
+        let _span = ctx.create_span().entered();
+
+        let url = self.core.build_url(api_name, endpoint)?;
+        debug!(
+            correlation_id = %ctx.correlation_id,
+            url = %url,
+            "Building request URL for bytes download"
+        );
+
+        let mut req = self
+            .client
+            .request(Method::GET, url)
+            .header("X-Correlation-ID", &ctx.correlation_id);
+
+        req = self.core.apply_credentials_async(req);
+
+        debug!(
+            correlation_id = %ctx.correlation_id,
+            "Sending bytes request"
+        );
+
+        let result = async {
+            let res = req.send().await?;
+            let status = res.status();
+
+            if !status.is_success() {
+                let response_body = res.text().await?;
+
+                debug!(
+                    correlation_id = %ctx.correlation_id,
+                    status = %status,
+                    response_size = response_body.len(),
+                    "Received error response"
+                );
+
+                return Err(match status {
+                    reqwest::StatusCode::UNAUTHORIZED => Error::Unauthorized,
+                    reqwest::StatusCode::METHOD_NOT_ALLOWED => Error::MethodNotAllowed,
+                    reqwest::StatusCode::NOT_FOUND => Error::NotFound,
+                    client_err if client_err.is_client_error() => Error::Fault {
+                        code: status,
+                        errors: serde_json::from_str(&response_body)?,
+                    },
+                    _ => Error::Fault {
+                        code: status,
+                        errors: serde_json::from_str(&response_body)?,
+                    },
+                });
+            }
+
+            let bytes = res.bytes().await?.to_vec();
+
+            debug!(
+                correlation_id = %ctx.correlation_id,
+                status = %status,
+                bytes_size = bytes.len(),
+                "Received bytes response"
+            );
+
+            Ok(bytes)
+        }
+        .await;
+
+        let success = result.is_ok();
+        ctx.finish(success);
+
+        result
     }
 
     /// Sends a POST request using the async Jira client.
