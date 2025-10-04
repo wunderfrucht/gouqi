@@ -2,7 +2,7 @@
 
 #[cfg(feature = "async")]
 mod async_tests {
-    use gouqi::{r#async::Jira, AddComment, Credentials};
+    use gouqi::{AddComment, Credentials, r#async::Jira};
     use mockito::Server;
 
     #[tokio::test]
@@ -19,7 +19,8 @@ mod async_tests {
             })))
             .with_status(201)
             .with_header("content-type", "application/json")
-            .with_body(r#"{
+            .with_body(
+                r#"{
                 "id": "12345",
                 "self": "https://example.com/rest/api/2/issue/TEST-123/comment/12345",
                 "author": {
@@ -31,7 +32,8 @@ mod async_tests {
                 "body": "Async test comment",
                 "created": "2024-01-01T10:00:00.000+0000",
                 "updated": "2024-01-01T10:00:00.000+0000"
-            }"#)
+            }"#,
+            )
             .create();
 
         // Call async comment method
@@ -39,7 +41,11 @@ mod async_tests {
         let result = jira.issues().comment("TEST-123", comment_data).await;
 
         mock.assert_async().await;
-        assert!(result.is_ok(), "Async comment should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Async comment should succeed: {:?}",
+            result.err()
+        );
 
         let comment = result.unwrap();
         assert_eq!(comment.id, Some("12345".to_string()));
@@ -69,7 +75,8 @@ mod async_tests {
             })))
             .with_status(201)
             .with_header("content-type", "application/json")
-            .with_body(r#"{
+            .with_body(
+                r#"{
                 "id": "12346",
                 "self": "https://example.com/rest/api/2/issue/TEST-123/comment/12346",
                 "author": {
@@ -85,7 +92,8 @@ mod async_tests {
                     "type": "role",
                     "value": "Administrators"
                 }
-            }"#)
+            }"#,
+            )
             .create();
 
         let comment_data = AddComment::new("Private async comment").with_visibility(visibility);
@@ -150,10 +158,12 @@ mod async_tests {
             .mock("POST", "/rest/api/latest/issue/TEST-123/comment")
             .with_status(400)
             .with_header("content-type", "application/json")
-            .with_body(r#"{
+            .with_body(
+                r#"{
                 "errorMessages": ["Comment body is required"],
                 "errors": {}
-            }"#)
+            }"#,
+            )
             .create();
 
         let comment_data = AddComment::new("Test comment");

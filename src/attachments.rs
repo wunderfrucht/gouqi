@@ -6,6 +6,9 @@ use std::collections::BTreeMap;
 // Ours
 use crate::{Jira, Result};
 
+#[cfg(feature = "async")]
+use crate::r#async::Jira as AsyncJira;
+
 /// Same as `User`, but without `email_address`
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserResponse {
@@ -71,5 +74,126 @@ impl Attachments {
             .delete("api", &format!("/attachment/{}", id.into()))?;
 
         Ok(())
+    }
+
+    /// Download attachment content as raw bytes
+    ///
+    /// This method retrieves the actual file content of an attachment. It automatically
+    /// handles authentication using the same credentials as other API calls.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The attachment ID
+    ///
+    /// # Returns
+    ///
+    /// `Result<Vec<u8>>` - The raw attachment content as bytes
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use gouqi::{Credentials, Jira};
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let jira = Jira::new("https://jira.example.com", Credentials::Anonymous)?;
+    /// let content_bytes = jira.attachments().download("12345")?;
+    ///
+    /// // Save to file
+    /// std::fs::write("attachment.pdf", &content_bytes)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// See this [jira docs](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-attachments/#api-rest-api-3-attachment-content-id-get)
+    /// for more information
+    pub fn download<I>(&self, id: I) -> Result<Vec<u8>>
+    where
+        I: Into<String>,
+    {
+        // The attachment content endpoint returns raw bytes, not JSON
+        self.jira
+            .get_bytes("api", &format!("/attachment/content/{}", id.into()))
+    }
+}
+
+#[cfg(feature = "async")]
+#[derive(Debug)]
+pub struct AsyncAttachments {
+    jira: AsyncJira,
+}
+
+#[cfg(feature = "async")]
+impl AsyncAttachments {
+    pub fn new(jira: &AsyncJira) -> AsyncAttachments {
+        AsyncAttachments { jira: jira.clone() }
+    }
+
+    /// Get the meta-data of a single attachment
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/attachment-getAttachment)
+    /// for more information
+    pub async fn get<I>(&self, id: I) -> Result<AttachmentResponse>
+    where
+        I: Into<String>,
+    {
+        self.jira
+            .get("api", &format!("/attachment/{}", id.into()))
+            .await
+    }
+
+    /// Delete a single attachment
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/attachment-removeAttachment)
+    /// for more information
+    pub async fn delete<I>(&self, id: I) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        let _res: Option<AttachmentResponse> = self
+            .jira
+            .delete("api", &format!("/attachment/{}", id.into()))
+            .await?;
+
+        Ok(())
+    }
+
+    /// Download attachment content as raw bytes (async)
+    ///
+    /// This method retrieves the actual file content of an attachment. It automatically
+    /// handles authentication using the same credentials as other API calls.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The attachment ID
+    ///
+    /// # Returns
+    ///
+    /// `Result<Vec<u8>>` - The raw attachment content as bytes
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// use gouqi::{Credentials, r#async::Jira};
+    ///
+    /// let jira = Jira::new("https://jira.example.com", Credentials::Anonymous)?;
+    /// let content_bytes = jira.attachments().download("12345").await?;
+    ///
+    /// // Save to file
+    /// std::fs::write("attachment.pdf", &content_bytes)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// See this [jira docs](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-attachments/#api-rest-api-3-attachment-content-id-get)
+    /// for more information
+    pub async fn download<I>(&self, id: I) -> Result<Vec<u8>>
+    where
+        I: Into<String>,
+    {
+        // The attachment content endpoint returns raw bytes, not JSON
+        self.jira
+            .get_bytes("api", &format!("/attachment/content/{}", id.into()))
+            .await
     }
 }

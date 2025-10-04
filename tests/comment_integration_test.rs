@@ -33,7 +33,8 @@ fn test_comment_v2_server_routing() {
         })))
         .with_status(201)
         .with_header("content-type", "application/json")
-        .with_body(r#"{
+        .with_body(
+            r#"{
             "id": "12345",
             "self": "https://example.com/rest/api/2/issue/TEST-123/comment/12345",
             "author": {
@@ -45,7 +46,8 @@ fn test_comment_v2_server_routing() {
             "body": "Test comment",
             "created": "2024-01-01T10:00:00.000+0000",
             "updated": "2024-01-01T10:00:00.000+0000"
-        }"#)
+        }"#,
+        )
         .create();
 
     // Call comment method - should route to V2
@@ -82,7 +84,8 @@ fn test_comment_v2_with_visibility() {
         })))
         .with_status(201)
         .with_header("content-type", "application/json")
-        .with_body(r#"{
+        .with_body(
+            r#"{
             "id": "12346",
             "self": "https://example.com/rest/api/2/issue/TEST-123/comment/12346",
             "author": {
@@ -98,7 +101,8 @@ fn test_comment_v2_with_visibility() {
                 "type": "role",
                 "value": "Administrators"
             }
-        }"#)
+        }"#,
+        )
         .create();
 
     let comment_data = AddComment::new("Private comment").with_visibility(visibility);
@@ -194,10 +198,12 @@ fn test_comment_error_handling() {
         .mock("POST", "/rest/api/latest/issue/TEST-123/comment")
         .with_status(400)
         .with_header("content-type", "application/json")
-        .with_body(r#"{
+        .with_body(
+            r#"{
             "errorMessages": ["Comment body is required"],
             "errors": {}
-        }"#)
+        }"#,
+        )
         .create();
 
     let comment_data = AddComment::new("Test comment");
