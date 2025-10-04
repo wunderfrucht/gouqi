@@ -255,7 +255,10 @@ impl Iterator for Iter<'_> {
                         self.results = new_results;
                         self.results.issues.pop()
                     }
-                    _ => None,
+                    Err(e) => {
+                        tracing::error!("Search pagination failed: {}", e);
+                        None
+                    }
                 }
             } else {
                 None

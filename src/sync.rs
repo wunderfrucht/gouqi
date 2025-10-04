@@ -141,6 +141,19 @@ impl Jira {
         Issues::new(self)
     }
 
+    /// Returns the issue links interface for managing links between issues
+    ///
+    /// Issue links represent relationships between issues (e.g., "blocks", "relates to").
+    /// This interface provides methods to create, retrieve, and delete issue links.
+    ///
+    /// # Returns
+    ///
+    /// An `IssueLinks` instance configured with this client
+    #[tracing::instrument]
+    pub fn issue_links(&self) -> crate::issue_links::IssueLinks {
+        crate::issue_links::IssueLinks::new(self)
+    }
+
     /// Returns the projects interface for working with Jira projects
     ///
     /// Projects in Jira contain issues and define the scope of work. This interface

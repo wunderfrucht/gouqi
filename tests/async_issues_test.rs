@@ -564,8 +564,8 @@ mod async_issues_tests {
 
         let edit_issue = EditIssue { fields };
 
-        // Edit the issue
-        issues.edit("TEST-1", edit_issue).await.unwrap();
+        // Update the issue
+        issues.update("TEST-1", edit_issue).await.unwrap();
 
         // Use the async version of assert
         mock.assert_async().await;

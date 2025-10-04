@@ -70,6 +70,7 @@ pub mod components;
 pub mod config;
 pub mod env;
 mod errors;
+pub mod issue_links;
 pub mod issues;
 pub mod mcp;
 #[cfg(feature = "metrics")]
@@ -93,6 +94,7 @@ pub use crate::components::*;
 pub use crate::config::*;
 pub use crate::core::*; // Re-export all core types
 pub use crate::errors::*;
+pub use crate::issue_links::*;
 pub use crate::issues::*;
 #[cfg(feature = "metrics")]
 pub use crate::metrics::*;

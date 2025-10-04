@@ -42,6 +42,28 @@ struct CreateSprint {
     pub origin_board_id: Option<u64>,
 }
 
+#[derive(Debug, PartialEq, Eq, Serialize, Clone)]
+pub struct UpdateSprint {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "startDate",
+        with = "time::serde::iso8601::option"
+    )]
+    pub start_date: Option<OffsetDateTime>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "endDate",
+        with = "time::serde::iso8601::option"
+    )]
+    pub end_date: Option<OffsetDateTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<String>, // "future", "active", "closed"
+}
+
 #[derive(Deserialize, Debug)]
 pub struct SprintResults {
     #[serde(rename = "maxResults")]
@@ -125,6 +147,31 @@ impl Sprints {
     ) -> Result<SprintsIter<'a>> {
         SprintsIter::new(board, options, &self.jira)
     }
+
+    /// Update sprint details (name, dates, state)
+    ///
+    /// See [jira docs](https://developer.atlassian.com/cloud/jira/software/rest/api-group-sprint/#api-rest-agile-1-0-sprint-sprintid-post)
+    /// for more information
+    pub fn update<I>(&self, id: I, data: UpdateSprint) -> Result<Sprint>
+    where
+        I: Into<u64>,
+    {
+        self.jira
+            .post("agile", &format!("/sprint/{}", id.into()), data)
+    }
+
+    /// Delete a sprint
+    ///
+    /// See [jira docs](https://developer.atlassian.com/cloud/jira/software/rest/api-group-sprint/#api-rest-agile-1-0-sprint-sprintid-delete)
+    /// for more information
+    pub fn delete<I>(&self, id: I) -> Result<()>
+    where
+        I: Into<u64>,
+    {
+        self.jira
+            .delete::<EmptyResponse>("agile", &format!("/sprint/{}", id.into()))?;
+        Ok(())
+    }
 }
 
 /// Provides an iterator over multiple pages of search results
@@ -170,11 +217,106 @@ impl Iterator for SprintsIter<'_> {
                         self.results = new_results;
                         self.results.values.pop()
                     }
-                    _ => None,
+                    Err(e) => {
+                        tracing::error!("Sprints pagination failed: {}", e);
+                        None
+                    }
                 }
             } else {
                 None
             }
         })
+    }
+}
+
+#[cfg(feature = "async")]
+use crate::r#async::Jira as AsyncJira;
+
+#[cfg(feature = "async")]
+#[derive(Debug)]
+pub struct AsyncSprints {
+    jira: AsyncJira,
+}
+
+#[cfg(feature = "async")]
+impl AsyncSprints {
+    pub fn new(jira: &AsyncJira) -> AsyncSprints {
+        AsyncSprints { jira: jira.clone() }
+    }
+
+    /// Create a new sprint
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/jira-software/REST/9.5.0/#agile/1.0/sprint-createSprint)
+    /// for more information
+    pub async fn create<T: Into<String>>(&self, board: Board, name: T) -> Result<Sprint> {
+        let data: CreateSprint = CreateSprint {
+            name: name.into(),
+            origin_board_id: Some(board.id),
+        };
+        self.jira.post("agile", "/sprint", data).await
+    }
+
+    /// Get a single sprint
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/jira-software/REST/latest/#agile/1.0/sprint-getSprint)
+    /// for more information
+    pub async fn get<I>(&self, id: I) -> Result<Sprint>
+    where
+        I: Into<String>,
+    {
+        self.jira
+            .get("agile", &format!("/sprint/{}", id.into()))
+            .await
+    }
+
+    /// Move issues into a sprint
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/jira-software/REST/latest/#agile/1.0/sprint-moveIssuesToSprint)
+    /// for more information
+    pub async fn move_issues(&self, sprint_id: u64, issues: Vec<String>) -> Result<EmptyResponse> {
+        let path = format!("/sprint/{sprint_id}/issue");
+        let data = MoveIssues { issues };
+        self.jira.post("agile", &path, data).await
+    }
+
+    /// Returns a single page of sprint results
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/jira-software/REST/latest/#agile/1.0/board/{boardId}/sprint-getAllSprints)
+    /// for more information
+    pub async fn list(&self, board: &Board, options: &SearchOptions) -> Result<SprintResults> {
+        let mut path = vec![format!("/board/{}/sprint", board.id)];
+        let query_options = options.serialize().unwrap_or_default();
+        let query = form_urlencoded::Serializer::new(query_options).finish();
+        path.push(query);
+        self.jira
+            .get::<SprintResults>("agile", path.join("?").as_ref())
+            .await
+    }
+
+    /// Update sprint details (name, dates, state)
+    ///
+    /// See [jira docs](https://developer.atlassian.com/cloud/jira/software/rest/api-group-sprint/#api-rest-agile-1-0-sprint-sprintid-post)
+    /// for more information
+    pub async fn update<I>(&self, id: I, data: UpdateSprint) -> Result<Sprint>
+    where
+        I: Into<u64>,
+    {
+        self.jira
+            .post("agile", &format!("/sprint/{}", id.into()), data)
+            .await
+    }
+
+    /// Delete a sprint
+    ///
+    /// See [jira docs](https://developer.atlassian.com/cloud/jira/software/rest/api-group-sprint/#api-rest-agile-1-0-sprint-sprintid-delete)
+    /// for more information
+    pub async fn delete<I>(&self, id: I) -> Result<()>
+    where
+        I: Into<u64>,
+    {
+        self.jira
+            .delete::<EmptyResponse>("agile", &format!("/sprint/{}", id.into()))
+            .await?;
+        Ok(())
     }
 }

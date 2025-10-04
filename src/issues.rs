@@ -290,11 +290,11 @@ impl Issues {
         self.jira.post("api", "/issue", data)
     }
 
-    /// Edit an issue
+    /// Update an issue
     ///
     /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/latest/#api/2/issue-editIssue)
     /// for more information
-    pub fn edit<I, T>(&self, id: I, data: EditIssue<T>) -> Result<()>
+    pub fn update<I, T>(&self, id: I, data: EditIssue<T>) -> Result<()>
     where
         I: Into<String>,
         T: Serialize,
@@ -304,14 +304,54 @@ impl Issues {
 
     /// Edit an issue
     ///
+    /// # Deprecated
+    ///
+    /// Use [`Issues::update`] instead. This method will be removed in a future version.
+    ///
     /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/latest/#api/2/issue-editIssue)
     /// for more information
-    pub fn edit_custom_issue<I, T>(&self, id: I, data: EditCustomIssue<T>) -> Result<()>
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use `update` instead for consistency with REST conventions"
+    )]
+    pub fn edit<I, T>(&self, id: I, data: EditIssue<T>) -> Result<()>
+    where
+        I: Into<String>,
+        T: Serialize,
+    {
+        self.update(id, data)
+    }
+
+    /// Update a custom issue
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/latest/#api/2/issue-editIssue)
+    /// for more information
+    pub fn update_custom_issue<I, T>(&self, id: I, data: EditCustomIssue<T>) -> Result<()>
     where
         I: Into<String>,
         T: Serialize,
     {
         self.jira.put("api", &format!("/issue/{}", id.into()), data)
+    }
+
+    /// Edit a custom issue
+    ///
+    /// # Deprecated
+    ///
+    /// Use [`Issues::update_custom_issue`] instead. This method will be removed in a future version.
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/latest/#api/2/issue-editIssue)
+    /// for more information
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use `update_custom_issue` instead for consistency with REST conventions"
+    )]
+    pub fn edit_custom_issue<I, T>(&self, id: I, data: EditCustomIssue<T>) -> Result<()>
+    where
+        I: Into<String>,
+        T: Serialize,
+    {
+        self.update_custom_issue(id, data)
     }
 
     /// Returns a single page of issue results
@@ -671,7 +711,9 @@ impl Issues {
     where
         I: Into<String>,
     {
-        self.jira.delete("api", &format!("/issue/{}", id.into()))
+        self.jira
+            .delete::<crate::EmptyResponse>("api", &format!("/issue/{}", id.into()))?;
+        Ok(())
     }
 
     /// Archive an issue
@@ -708,6 +750,166 @@ impl Issues {
     {
         self.jira
             .post("api", &format!("/issue/{}/archive", id.into()), ())
+    }
+
+    /// Get all worklogs for an issue
+    ///
+    /// Returns a paginated list of all work logs for the specified issue.
+    ///
+    /// # Arguments
+    ///
+    /// * `issue_key` - The issue key (e.g., "PROJ-123") or ID
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use gouqi::{Credentials, Jira};
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
+    /// let worklogs = jira.issues().get_worklogs("PROJ-123")?;
+    /// for worklog in worklogs.worklogs {
+    ///     println!("Worklog: {} - {}", worklog.id, worklog.time_spent.unwrap_or_default());
+    /// }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn get_worklogs<K>(&self, issue_key: K) -> Result<crate::WorklogList>
+    where
+        K: Into<String>,
+    {
+        self.jira
+            .get("api", &format!("/issue/{}/worklog", issue_key.into()))
+    }
+
+    /// Get a specific worklog by ID
+    ///
+    /// Returns details of a specific worklog entry for an issue.
+    ///
+    /// # Arguments
+    ///
+    /// * `issue_key` - The issue key (e.g., "PROJ-123") or ID
+    /// * `worklog_id` - The ID of the worklog
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use gouqi::{Credentials, Jira};
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
+    /// let worklog = jira.issues().get_worklog("PROJ-123", "10001")?;
+    /// println!("Time spent: {}", worklog.time_spent.unwrap_or_default());
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn get_worklog<K, W>(&self, issue_key: K, worklog_id: W) -> Result<crate::Worklog>
+    where
+        K: Into<String>,
+        W: Into<String>,
+    {
+        self.jira.get(
+            "api",
+            &format!("/issue/{}/worklog/{}", issue_key.into(), worklog_id.into()),
+        )
+    }
+
+    /// Add a worklog to an issue
+    ///
+    /// Creates a new worklog entry for the specified issue.
+    ///
+    /// # Arguments
+    ///
+    /// * `issue_key` - The issue key (e.g., "PROJ-123") or ID
+    /// * `worklog` - The worklog data to create
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use gouqi::{Credentials, Jira, WorklogInput};
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
+    /// // Log 2 hours (7200 seconds)
+    /// let worklog = WorklogInput::new(7200)
+    ///     .with_comment("Fixed the bug");
+    ///
+    /// let created = jira.issues().add_worklog("PROJ-123", worklog)?;
+    /// println!("Created worklog: {}", created.id);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn add_worklog<K>(
+        &self,
+        issue_key: K,
+        worklog: crate::WorklogInput,
+    ) -> Result<crate::Worklog>
+    where
+        K: Into<String>,
+    {
+        self.jira.post(
+            "api",
+            &format!("/issue/{}/worklog", issue_key.into()),
+            worklog,
+        )
+    }
+
+    /// Update an existing worklog
+    ///
+    /// Updates a worklog entry for the specified issue.
+    ///
+    /// # Arguments
+    ///
+    /// * `issue_key` - The issue key (e.g., "PROJ-123") or ID
+    /// * `worklog_id` - The ID of the worklog to update
+    /// * `worklog` - The updated worklog data
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use gouqi::{Credentials, Jira, WorklogInput};
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
+    /// let worklog = WorklogInput::new(3600)  // 1 hour
+    ///     .with_comment("Updated time estimate");
+    ///
+    /// let updated = jira.issues().update_worklog("PROJ-123", "10001", worklog)?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn update_worklog<K, W>(
+        &self,
+        issue_key: K,
+        worklog_id: W,
+        worklog: crate::WorklogInput,
+    ) -> Result<crate::Worklog>
+    where
+        K: Into<String>,
+        W: Into<String>,
+    {
+        self.jira.put(
+            "api",
+            &format!("/issue/{}/worklog/{}", issue_key.into(), worklog_id.into()),
+            worklog,
+        )
+    }
+
+    /// Delete a worklog
+    ///
+    /// Deletes a worklog entry from an issue.
+    ///
+    /// # Arguments
+    ///
+    /// * `issue_key` - The issue key (e.g., "PROJ-123") or ID
+    /// * `worklog_id` - The ID of the worklog to delete
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use gouqi::{Credentials, Jira};
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
+    /// jira.issues().delete_worklog("PROJ-123", "10001")?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn delete_worklog<K, W>(&self, issue_key: K, worklog_id: W) -> Result<()>
+    where
+        K: Into<String>,
+        W: Into<String>,
+    {
+        self.jira.delete::<crate::EmptyResponse>(
+            "api",
+            &format!("/issue/{}/worklog/{}", issue_key.into(), worklog_id.into()),
+        )?;
+        Ok(())
     }
 
     /// Assign or unassign an issue
@@ -970,7 +1172,10 @@ impl Iterator for IssuesIter<'_> {
                         self.results = new_results;
                         self.results.issues.pop()
                     }
-                    _ => None,
+                    Err(e) => {
+                        tracing::error!("Issues pagination failed: {}", e);
+                        None
+                    }
                 }
             } else {
                 None
@@ -1011,11 +1216,11 @@ impl AsyncIssues {
         self.jira.post("api", "/issue", data).await
     }
 
-    /// Edit an issue
+    /// Update an issue
     ///
     /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/latest/#api/2/issue-editIssue)
     /// for more information
-    pub async fn edit<I, T>(&self, id: I, data: EditIssue<T>) -> Result<()>
+    pub async fn update<I, T>(&self, id: I, data: EditIssue<T>) -> Result<()>
     where
         I: Into<String>,
         T: Serialize,
@@ -1023,6 +1228,26 @@ impl AsyncIssues {
         self.jira
             .put("api", &format!("/issue/{}", id.into()), data)
             .await
+    }
+
+    /// Edit an issue
+    ///
+    /// # Deprecated
+    ///
+    /// Use [`AsyncIssues::update`] instead. This method will be removed in a future version.
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/latest/#api/2/issue-editIssue)
+    /// for more information
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use `update` instead for consistency with REST conventions"
+    )]
+    pub async fn edit<I, T>(&self, id: I, data: EditIssue<T>) -> Result<()>
+    where
+        I: Into<String>,
+        T: Serialize,
+    {
+        self.update(id, data).await
     }
 
     /// Returns a single page of issue results
@@ -1386,8 +1611,9 @@ impl AsyncIssues {
         I: Into<String>,
     {
         self.jira
-            .delete("api", &format!("/issue/{}", id.into()))
-            .await
+            .delete::<crate::EmptyResponse>("api", &format!("/issue/{}", id.into()))
+            .await?;
+        Ok(())
     }
 
     /// Archive an issue (async)
@@ -1405,6 +1631,83 @@ impl AsyncIssues {
         self.jira
             .post("api", &format!("/issue/{}/archive", id.into()), ())
             .await
+    }
+
+    /// Get all worklogs for an issue (async)
+    pub async fn get_worklogs<K>(&self, issue_key: K) -> Result<crate::WorklogList>
+    where
+        K: Into<String>,
+    {
+        self.jira
+            .get("api", &format!("/issue/{}/worklog", issue_key.into()))
+            .await
+    }
+
+    /// Get a specific worklog by ID (async)
+    pub async fn get_worklog<K, W>(&self, issue_key: K, worklog_id: W) -> Result<crate::Worklog>
+    where
+        K: Into<String>,
+        W: Into<String>,
+    {
+        self.jira
+            .get(
+                "api",
+                &format!("/issue/{}/worklog/{}", issue_key.into(), worklog_id.into()),
+            )
+            .await
+    }
+
+    /// Add a worklog to an issue (async)
+    pub async fn add_worklog<K>(
+        &self,
+        issue_key: K,
+        worklog: crate::WorklogInput,
+    ) -> Result<crate::Worklog>
+    where
+        K: Into<String>,
+    {
+        self.jira
+            .post(
+                "api",
+                &format!("/issue/{}/worklog", issue_key.into()),
+                worklog,
+            )
+            .await
+    }
+
+    /// Update an existing worklog (async)
+    pub async fn update_worklog<K, W>(
+        &self,
+        issue_key: K,
+        worklog_id: W,
+        worklog: crate::WorklogInput,
+    ) -> Result<crate::Worklog>
+    where
+        K: Into<String>,
+        W: Into<String>,
+    {
+        self.jira
+            .put(
+                "api",
+                &format!("/issue/{}/worklog/{}", issue_key.into(), worklog_id.into()),
+                worklog,
+            )
+            .await
+    }
+
+    /// Delete a worklog (async)
+    pub async fn delete_worklog<K, W>(&self, issue_key: K, worklog_id: W) -> Result<()>
+    where
+        K: Into<String>,
+        W: Into<String>,
+    {
+        self.jira
+            .delete::<crate::EmptyResponse>(
+                "api",
+                &format!("/issue/{}/worklog/{}", issue_key.into(), worklog_id.into()),
+            )
+            .await?;
+        Ok(())
     }
 
     /// Assign an issue to a user (async, None for unassign)
