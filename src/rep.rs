@@ -252,7 +252,6 @@ pub struct Visibility {
 
 /// Atlassian Document Format (ADF) structures for V3 API comments
 /// See: https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/
-
 /// ADF text node - inline content with optional formatting
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AdfText {
