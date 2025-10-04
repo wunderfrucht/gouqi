@@ -131,9 +131,60 @@ pub struct IssueResults {
     pub issues: Vec<Issue>,
 }
 
+/// Request body for adding a comment (V2 API - plain text)
 #[derive(Debug, Serialize)]
 pub struct AddComment {
     pub body: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<crate::rep::Visibility>,
+}
+
+impl AddComment {
+    /// Create a new comment with plain text
+    pub fn new(body: impl Into<String>) -> Self {
+        Self {
+            body: body.into(),
+            visibility: None,
+        }
+    }
+
+    /// Set visibility restrictions for the comment
+    pub fn with_visibility(mut self, visibility: crate::rep::Visibility) -> Self {
+        self.visibility = Some(visibility);
+        self
+    }
+}
+
+/// Request body for adding a comment (V3 API - ADF format)
+#[derive(Debug, Serialize)]
+pub struct AddCommentAdf {
+    pub body: crate::rep::AdfDocument,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<crate::rep::Visibility>,
+}
+
+impl AddCommentAdf {
+    /// Create a new comment from plain text (converts to ADF)
+    pub fn from_text(text: impl Into<String>) -> Self {
+        Self {
+            body: crate::rep::AdfDocument::from_text(text),
+            visibility: None,
+        }
+    }
+
+    /// Create a comment from an ADF document
+    pub fn from_adf(body: crate::rep::AdfDocument) -> Self {
+        Self {
+            body,
+            visibility: None,
+        }
+    }
+
+    /// Set visibility restrictions for the comment
+    pub fn with_visibility(mut self, visibility: crate::rep::Visibility) -> Self {
+        self.visibility = Some(visibility);
+        self
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -286,15 +337,50 @@ impl Issues {
         IssuesIter::new(board, options, &self.jira)
     }
 
+    /// Add a comment to an issue
+    ///
+    /// Automatically detects whether to use V2 (plain text) or V3 (ADF) format
+    /// based on the Jira deployment type. For Jira Cloud, uses V3/ADF format.
+    /// For Server/Data Center, uses V2/plain text format.
+    ///
+    /// See [V2 docs](https://developer.atlassian.com/server/jira/platform/jira-rest-api-example-add-comment-8946422/)
+    /// and [V3 docs](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-comments/)
+    /// for more information
     pub fn comment<K>(&self, key: K, data: AddComment) -> Result<Comment>
     where
         K: Into<String>,
     {
-        self.jira.post(
-            "api",
-            format!("/issue/{}/comment", key.into()).as_ref(),
-            data,
-        )
+        use crate::core::SearchApiVersion;
+
+        let issue_key = key.into();
+
+        // Detect API version (same logic as search API)
+        match self.jira.core.get_search_api_version() {
+            SearchApiVersion::V3 => {
+                // V3 API requires ADF format
+                let adf_comment = if let Some(visibility) = data.visibility {
+                    AddCommentAdf::from_text(data.body).with_visibility(visibility)
+                } else {
+                    AddCommentAdf::from_text(data.body)
+                };
+
+                self.jira.post_versioned(
+                    "api",
+                    Some("3"),
+                    format!("/issue/{}/comment", issue_key).as_ref(),
+                    adf_comment,
+                )
+            }
+            _ => {
+                // V2 API uses plain text
+                self.jira.post_versioned(
+                    "api",
+                    Some("latest"),
+                    format!("/issue/{}/comment", issue_key).as_ref(),
+                    data,
+                )
+            }
+        }
     }
 
     pub fn changelog<K>(&self, key: K) -> Result<Changelog>
@@ -977,17 +1063,54 @@ impl AsyncIssues {
         Ok(stream)
     }
 
+    /// Add a comment to an issue (async)
+    ///
+    /// Automatically detects whether to use V2 (plain text) or V3 (ADF) format
+    /// based on the Jira deployment type. For Jira Cloud, uses V3/ADF format.
+    /// For Server/Data Center, uses V2/plain text format.
+    ///
+    /// See [V2 docs](https://developer.atlassian.com/server/jira/platform/jira-rest-api-example-add-comment-8946422/)
+    /// and [V3 docs](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-comments/)
+    /// for more information
     pub async fn comment<K>(&self, key: K, data: AddComment) -> Result<Comment>
     where
         K: Into<String>,
     {
-        self.jira
-            .post(
-                "api",
-                format!("/issue/{}/comment", key.into()).as_ref(),
-                data,
-            )
-            .await
+        use crate::core::SearchApiVersion;
+
+        let issue_key = key.into();
+
+        // Detect API version (same logic as search API)
+        match self.jira.core.get_search_api_version() {
+            SearchApiVersion::V3 => {
+                // V3 API requires ADF format
+                let adf_comment = if let Some(visibility) = data.visibility {
+                    AddCommentAdf::from_text(data.body).with_visibility(visibility)
+                } else {
+                    AddCommentAdf::from_text(data.body)
+                };
+
+                self.jira
+                    .post_versioned(
+                        "api",
+                        Some("3"),
+                        format!("/issue/{}/comment", issue_key).as_ref(),
+                        adf_comment,
+                    )
+                    .await
+            }
+            _ => {
+                // V2 API uses plain text
+                self.jira
+                    .post_versioned(
+                        "api",
+                        Some("latest"),
+                        format!("/issue/{}/comment", issue_key).as_ref(),
+                        data,
+                    )
+                    .await
+            }
+        }
     }
 
     pub async fn changelog<K>(&self, key: K) -> Result<Changelog>

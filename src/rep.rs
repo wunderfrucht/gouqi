@@ -250,6 +250,102 @@ pub struct Visibility {
     pub value: String,
 }
 
+/// Atlassian Document Format (ADF) structures for V3 API comments
+/// See: https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/
+
+/// ADF text node - inline content with optional formatting
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AdfText {
+    #[serde(rename = "type")]
+    pub node_type: String, // "text"
+    pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub marks: Option<Vec<AdfMark>>,
+}
+
+impl AdfText {
+    /// Create a plain text node
+    pub fn new(text: impl Into<String>) -> Self {
+        Self {
+            node_type: "text".to_string(),
+            text: text.into(),
+            marks: None,
+        }
+    }
+}
+
+/// ADF text formatting marks (bold, italic, etc.)
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AdfMark {
+    #[serde(rename = "type")]
+    pub mark_type: String, // "strong", "em", "code", etc.
+}
+
+/// ADF block node - can be paragraph, heading, list, etc.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AdfNode {
+    #[serde(rename = "type")]
+    pub node_type: String, // "paragraph", "heading", etc.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<Vec<AdfContent>>,
+}
+
+impl AdfNode {
+    /// Create a paragraph node containing text
+    pub fn paragraph(content: Vec<AdfText>) -> Self {
+        Self {
+            node_type: "paragraph".to_string(),
+            content: Some(content.into_iter().map(AdfContent::Text).collect()),
+        }
+    }
+}
+
+/// ADF content - can be either inline text or nested nodes
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum AdfContent {
+    Text(AdfText),
+    Node(Box<AdfNode>),
+}
+
+/// ADF document root structure for V3 API
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AdfDocument {
+    pub version: u32,
+    #[serde(rename = "type")]
+    pub doc_type: String, // "doc"
+    pub content: Vec<AdfNode>,
+}
+
+impl AdfDocument {
+    /// Create an ADF document from plain text
+    /// Splits text by newlines and creates a paragraph for each line
+    pub fn from_text(text: impl Into<String>) -> Self {
+        let text = text.into();
+        let content = if text.is_empty() {
+            // Empty document needs at least one empty paragraph
+            vec![AdfNode::paragraph(vec![])]
+        } else {
+            // Split by newlines and create a paragraph for each non-empty line
+            text.lines()
+                .map(|line| {
+                    if line.is_empty() {
+                        AdfNode::paragraph(vec![])
+                    } else {
+                        AdfNode::paragraph(vec![AdfText::new(line)])
+                    }
+                })
+                .collect()
+        };
+
+        Self {
+            version: 1,
+            doc_type: "doc".to_string(),
+            content,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Changelog {
     #[serde(rename = "values")]
