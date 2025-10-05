@@ -19,7 +19,11 @@ yanked = "warn"
 # A list of advisory IDs to ignore. Note that ignored advisories will still
 # output a note when they are encountered.
 ignore = [
-    #"RUSTSEC-0000-0000",
+    # rsa 0.9.8 - Marvin Attack timing sidechannel (PKCS#1 v1.5 decryption only)
+    # Affects OAuth feature only (optional). We only use RSA for signing, not decryption.
+    # No safe upgrade available in 0.9.x series. Will upgrade to 0.10.0 when stable.
+    # See: https://rustsec.org/advisories/RUSTSEC-2023-0071
+    "RUSTSEC-2023-0071",
 ]
 # Threshold for security vulnerabilities, any vulnerability with a CVSS score
 # lower than the range specified will be ignored. Note that ignored advisories
