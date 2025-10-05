@@ -18,6 +18,14 @@
 //! Once you have obtained OAuth credentials through the authorization flow, use them
 //! with the `Credentials::OAuth1a` variant.
 //!
+//! # Security Note
+//!
+//! This module uses `rsa 0.9.8` which has a known timing sidechannel vulnerability
+//! ([RUSTSEC-2023-0071](https://rustsec.org/advisories/RUSTSEC-2023-0071)) in PKCS#1 v1.5
+//! **decryption**. This vulnerability does NOT affect our implementation because we only
+//! use RSA for **signing**, not decryption. The vulnerability will be resolved when we
+//! upgrade to `rsa 0.10.0` once it's stable.
+//!
 //! # References
 //!
 //! - [Jira OAuth Documentation](https://developer.atlassian.com/server/jira/platform/oauth/)
