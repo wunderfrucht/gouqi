@@ -139,6 +139,21 @@ impl SearchOptionsBuilder {
         self
     }
 
+    pub fn properties<P>(&mut self, props: Vec<P>) -> &mut SearchOptionsBuilder
+    where
+        P: Into<String>,
+    {
+        self.params.insert(
+            "properties",
+            props
+                .into_iter()
+                .map(|p| p.into())
+                .collect::<Vec<String>>()
+                .join(","),
+        );
+        self
+    }
+
     pub fn state(&mut self, s: &str) -> &mut SearchOptionsBuilder {
         self.params.insert("state", s.to_string());
         self

@@ -70,6 +70,7 @@ pub mod components;
 pub mod config;
 pub mod env;
 mod errors;
+pub mod groups;
 pub mod issue_links;
 pub mod issues;
 pub mod mcp;
@@ -84,6 +85,7 @@ pub mod relationships;
 mod rep;
 mod search;
 pub mod transitions;
+pub mod users;
 pub mod versions;
 
 pub use crate::attachments::*;
@@ -94,6 +96,7 @@ pub use crate::components::*;
 pub use crate::config::*;
 pub use crate::core::*; // Re-export all core types
 pub use crate::errors::*;
+pub use crate::groups::*;
 pub use crate::issue_links::*;
 pub use crate::issues::*;
 #[cfg(feature = "metrics")]
@@ -107,6 +110,7 @@ pub use crate::rep::*;
 pub use crate::search::AsyncSearch;
 pub use crate::search::Search;
 pub use crate::transitions::*;
+pub use crate::users::*;
 pub mod boards;
 pub mod resolution;
 pub use crate::boards::*;

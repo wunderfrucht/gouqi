@@ -605,6 +605,7 @@ fn create_sample_project() -> Project {
         project_category: None,
         description: Some("A demo project for testing".to_string()),
         lead: Some(User {
+            account_id: None,
             active: true,
             avatar_urls: None,
             display_name: "Project Lead".to_string(),
@@ -624,6 +625,7 @@ fn create_sample_project() -> Project {
 // Helper function to create a sample user for testing
 fn create_sample_user() -> User {
     User {
+        account_id: None,
         active: true,
         avatar_urls: None,
         display_name: "Test User".to_string(),

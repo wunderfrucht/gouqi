@@ -286,6 +286,32 @@ impl Jira {
         crate::transitions::AsyncTransitions::new(self, issue_key)
     }
 
+    /// Returns the users interface for working with Jira users asynchronously
+    ///
+    /// This interface provides methods to search for users, get user details,
+    /// and find users assignable to projects and issues.
+    ///
+    /// # Returns
+    ///
+    /// An `AsyncUsers` instance configured with this client
+    #[tracing::instrument]
+    pub fn users(&self) -> crate::users::AsyncUsers {
+        crate::users::AsyncUsers::new(self)
+    }
+
+    /// Returns the groups interface for working with Jira groups asynchronously
+    ///
+    /// This interface provides methods to list groups, get group members,
+    /// create and delete groups, and manage group membership.
+    ///
+    /// # Returns
+    ///
+    /// An `AsyncGroups` instance configured with this client
+    #[tracing::instrument]
+    pub fn groups(&self) -> crate::groups::AsyncGroups {
+        crate::groups::AsyncGroups::new(self)
+    }
+
     /// Asynchronously retrieves the current user's session information from Jira
     ///
     /// This method provides information about the authenticated user's session,
@@ -574,6 +600,82 @@ impl Jira {
         debug!("Json PUT request sent");
         self.request::<D>(Method::PUT, api_name, endpoint, Some(data))
             .await
+    }
+
+    /// Sends a POST request with multipart/form-data (async)
+    ///
+    /// # Arguments
+    ///
+    /// * `api_name` - Name of the API: like "agile" or "api"
+    /// * `endpoint` - API endpoint path
+    /// * `form` - Multipart form data
+    ///
+    /// # Returns
+    ///
+    /// `Result<D>` - Response deserialized into type `D`
+    pub async fn post_multipart<D>(
+        &self,
+        api_name: &str,
+        endpoint: &str,
+        form: reqwest::multipart::Form,
+    ) -> Result<D>
+    where
+        D: DeserializeOwned,
+    {
+        let ctx = RequestContext::new("POST", endpoint);
+        let _span = ctx.create_span().entered();
+
+        let url = self.core.build_url(api_name, endpoint)?;
+        debug!(
+            correlation_id = %ctx.correlation_id,
+            url = %url,
+            "Building async multipart request URL"
+        );
+
+        // Generate OAuth header if using OAuth 1.0a
+        #[cfg(feature = "oauth")]
+        let oauth_header = self.core.get_oauth_header("POST", url.as_str())?;
+
+        let mut req = self
+            .client
+            .request(Method::POST, url)
+            .header("X-Atlassian-Token", "no-check")
+            .header("X-Correlation-ID", &ctx.correlation_id)
+            .multipart(form);
+
+        // Apply OAuth header if present
+        #[cfg(feature = "oauth")]
+        if let Some(header) = oauth_header {
+            req = req.header(reqwest::header::AUTHORIZATION, header);
+        }
+
+        req = self.core.apply_credentials_async(req);
+
+        debug!(
+            correlation_id = %ctx.correlation_id,
+            "Sending async multipart request"
+        );
+
+        async {
+            let res = req.send().await?;
+            let status = res.status();
+
+            let response_body = res.text().await?;
+
+            debug!(
+                correlation_id = %ctx.correlation_id,
+                status = %status,
+                response_size = response_body.len(),
+                "Received async response"
+            );
+
+            let response = self.core.process_response(status, &response_body)?;
+
+            ctx.finish(false);
+
+            Ok(response)
+        }
+        .await
     }
 
     #[tracing::instrument(skip(self, body))]

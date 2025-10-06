@@ -1,5 +1,6 @@
 //! Tests for worklog operations
 
+use gouqi::issues::{AdjustEstimate, WorklogOptions};
 use gouqi::{Credentials, Jira, WorklogInput};
 use serde_json::json;
 
@@ -245,6 +246,164 @@ fn test_worklog_input_builder() {
     assert_eq!(worklog.time_spent, Some("1h".to_string()));
 }
 
+#[test]
+fn test_add_worklog_with_options_new_estimate() {
+    let mut server = mockito::Server::new();
+
+    let response_data = json!({
+        "self": format!("{}/rest/api/latest/issue/TEST-1/worklog/10005", server.url()),
+        "id": "10005",
+        "timeSpent": "2h",
+        "timeSpentSeconds": 7200,
+        "issueId": "10000"
+    });
+
+    // Verify the query parameters are sent correctly
+    server
+        .mock("POST", "/rest/api/latest/issue/TEST-1/worklog")
+        .match_query(mockito::Matcher::AllOf(vec![
+            mockito::Matcher::UrlEncoded("adjustEstimate".to_string(), "new".to_string()),
+            mockito::Matcher::UrlEncoded("newEstimate".to_string(), "1d".to_string()),
+            mockito::Matcher::UrlEncoded("notifyUsers".to_string(), "false".to_string()),
+        ]))
+        .with_status(201)
+        .with_header("content-type", "application/json")
+        .with_body(response_data.to_string())
+        .create();
+
+    let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
+
+    let worklog = WorklogInput::new(7200).with_comment("Fixed bug");
+    let options = WorklogOptions::builder()
+        .adjust_estimate(AdjustEstimate::New("1d".to_string()))
+        .notify_users(false)
+        .build();
+
+    let result = jira
+        .issues()
+        .add_worklog_with_options("TEST-1", worklog, &options);
+
+    assert!(result.is_ok());
+    let created = result.unwrap();
+    assert_eq!(created.id, "10005");
+    assert_eq!(created.time_spent_seconds, Some(7200));
+}
+
+#[test]
+fn test_add_worklog_with_options_manual_reduce() {
+    let mut server = mockito::Server::new();
+
+    let response_data = json!({
+        "self": format!("{}/rest/api/latest/issue/TEST-1/worklog/10006", server.url()),
+        "id": "10006",
+        "timeSpent": "1h",
+        "timeSpentSeconds": 3600,
+        "issueId": "10000"
+    });
+
+    server
+        .mock("POST", "/rest/api/latest/issue/TEST-1/worklog")
+        .match_query(mockito::Matcher::AllOf(vec![
+            mockito::Matcher::UrlEncoded("adjustEstimate".to_string(), "manual".to_string()),
+            mockito::Matcher::UrlEncoded("reduceBy".to_string(), "30m".to_string()),
+        ]))
+        .with_status(201)
+        .with_header("content-type", "application/json")
+        .with_body(response_data.to_string())
+        .create();
+
+    let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
+
+    let worklog = WorklogInput::new(3600);
+    let options = WorklogOptions::builder()
+        .adjust_estimate(AdjustEstimate::Manual("30m".to_string()))
+        .build();
+
+    let result = jira
+        .issues()
+        .add_worklog_with_options("TEST-1", worklog, &options);
+
+    assert!(result.is_ok());
+    let created = result.unwrap();
+    assert_eq!(created.id, "10006");
+}
+
+#[test]
+fn test_add_worklog_with_options_leave_estimate() {
+    let mut server = mockito::Server::new();
+
+    let response_data = json!({
+        "self": format!("{}/rest/api/latest/issue/TEST-1/worklog/10007", server.url()),
+        "id": "10007",
+        "timeSpent": "3h",
+        "timeSpentSeconds": 10800,
+        "issueId": "10000"
+    });
+
+    server
+        .mock("POST", "/rest/api/latest/issue/TEST-1/worklog")
+        .match_query(mockito::Matcher::UrlEncoded(
+            "adjustEstimate".to_string(),
+            "leave".to_string(),
+        ))
+        .with_status(201)
+        .with_header("content-type", "application/json")
+        .with_body(response_data.to_string())
+        .create();
+
+    let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
+
+    let worklog = WorklogInput::new(10800);
+    let options = WorklogOptions::builder()
+        .adjust_estimate(AdjustEstimate::Leave)
+        .build();
+
+    let result = jira
+        .issues()
+        .add_worklog_with_options("TEST-1", worklog, &options);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_update_worklog_with_options() {
+    let mut server = mockito::Server::new();
+
+    let response_data = json!({
+        "self": format!("{}/rest/api/latest/issue/TEST-1/worklog/10001", server.url()),
+        "id": "10001",
+        "timeSpent": "4h",
+        "timeSpentSeconds": 14400,
+        "issueId": "10000"
+    });
+
+    server
+        .mock("PUT", "/rest/api/latest/issue/TEST-1/worklog/10001")
+        .match_query(mockito::Matcher::AllOf(vec![
+            mockito::Matcher::UrlEncoded("adjustEstimate".to_string(), "new".to_string()),
+            mockito::Matcher::UrlEncoded("newEstimate".to_string(), "2h".to_string()),
+        ]))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(response_data.to_string())
+        .create();
+
+    let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
+
+    let worklog = WorklogInput::new(14400);
+    let options = WorklogOptions::builder()
+        .adjust_estimate(AdjustEstimate::New("2h".to_string()))
+        .build();
+
+    let result = jira
+        .issues()
+        .update_worklog_with_options("TEST-1", "10001", worklog, &options);
+
+    assert!(result.is_ok());
+    let updated = result.unwrap();
+    assert_eq!(updated.time_spent_seconds, Some(14400));
+}
+
 #[cfg(feature = "async")]
 mod async_tests {
     use super::*;
@@ -382,5 +541,127 @@ mod async_tests {
         let result = jira.issues().delete_worklog("TEST-1", "10001").await;
 
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_async_add_worklog_with_options_new_estimate() {
+        let mut server = mockito::Server::new_async().await;
+
+        let response_data = json!({
+            "self": format!("{}/rest/api/latest/issue/TEST-1/worklog/10008", server.url()),
+            "id": "10008",
+            "timeSpent": "2h",
+            "timeSpentSeconds": 7200,
+            "issueId": "10000"
+        });
+
+        server
+            .mock("POST", "/rest/api/latest/issue/TEST-1/worklog")
+            .match_query(mockito::Matcher::AllOf(vec![
+                mockito::Matcher::UrlEncoded("adjustEstimate".to_string(), "new".to_string()),
+                mockito::Matcher::UrlEncoded("newEstimate".to_string(), "3h".to_string()),
+            ]))
+            .with_status(201)
+            .with_header("content-type", "application/json")
+            .with_body(response_data.to_string())
+            .create_async()
+            .await;
+
+        let jira = AsyncJira::new(server.url(), Credentials::Anonymous).unwrap();
+
+        let worklog = WorklogInput::new(7200);
+        let options = WorklogOptions::builder()
+            .adjust_estimate(AdjustEstimate::New("3h".to_string()))
+            .build();
+
+        let result = jira
+            .issues()
+            .add_worklog_with_options("TEST-1", worklog, &options)
+            .await;
+
+        assert!(result.is_ok());
+        let created = result.unwrap();
+        assert_eq!(created.id, "10008");
+    }
+
+    #[tokio::test]
+    async fn test_async_add_worklog_with_options_manual_reduce() {
+        let mut server = mockito::Server::new_async().await;
+
+        let response_data = json!({
+            "self": format!("{}/rest/api/latest/issue/TEST-1/worklog/10009", server.url()),
+            "id": "10009",
+            "timeSpent": "1h",
+            "timeSpentSeconds": 3600,
+            "issueId": "10000"
+        });
+
+        server
+            .mock("POST", "/rest/api/latest/issue/TEST-1/worklog")
+            .match_query(mockito::Matcher::AllOf(vec![
+                mockito::Matcher::UrlEncoded("adjustEstimate".to_string(), "manual".to_string()),
+                mockito::Matcher::UrlEncoded("reduceBy".to_string(), "45m".to_string()),
+            ]))
+            .with_status(201)
+            .with_header("content-type", "application/json")
+            .with_body(response_data.to_string())
+            .create_async()
+            .await;
+
+        let jira = AsyncJira::new(server.url(), Credentials::Anonymous).unwrap();
+
+        let worklog = WorklogInput::new(3600);
+        let options = WorklogOptions::builder()
+            .adjust_estimate(AdjustEstimate::Manual("45m".to_string()))
+            .build();
+
+        let result = jira
+            .issues()
+            .add_worklog_with_options("TEST-1", worklog, &options)
+            .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_async_update_worklog_with_options() {
+        let mut server = mockito::Server::new_async().await;
+
+        let response_data = json!({
+            "self": format!("{}/rest/api/latest/issue/TEST-1/worklog/10001", server.url()),
+            "id": "10001",
+            "timeSpent": "5h",
+            "timeSpentSeconds": 18000,
+            "issueId": "10000"
+        });
+
+        server
+            .mock("PUT", "/rest/api/latest/issue/TEST-1/worklog/10001")
+            .match_query(mockito::Matcher::AllOf(vec![
+                mockito::Matcher::UrlEncoded("adjustEstimate".to_string(), "leave".to_string()),
+                mockito::Matcher::UrlEncoded("notifyUsers".to_string(), "false".to_string()),
+            ]))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(response_data.to_string())
+            .create_async()
+            .await;
+
+        let jira = AsyncJira::new(server.url(), Credentials::Anonymous).unwrap();
+
+        let worklog = WorklogInput::new(18000);
+        let options = WorklogOptions::builder()
+            .adjust_estimate(AdjustEstimate::Leave)
+            .notify_users(false)
+            .build();
+
+        let result = jira
+            .issues()
+            .update_worklog_with_options("TEST-1", "10001", worklog, &options)
+            .await;
+
+        assert!(result.is_ok());
+        let updated = result.unwrap();
+        assert_eq!(updated.time_spent_seconds, Some(18000));
     }
 }
