@@ -71,6 +71,51 @@ fn test_search_with_pagination_options() {
 }
 
 #[test]
+fn test_search_with_properties() {
+    let mut server = mockito::Server::new();
+
+    let mock_results = json!({
+        "startAt": 0,
+        "maxResults": 50,
+        "total": 1,
+        "issues": [
+            {
+                "id": "10001",
+                "key": "TEST-1",
+                "self": format!("{}/rest/api/latest/issue/10001", server.url()),
+                "fields": {
+                    "summary": "Test issue",
+                    "status": {"name": "Open"}
+                }
+            }
+        ]
+    });
+
+    server
+        .mock(
+            "GET",
+            mockito::Matcher::Regex(r"^/rest/api/latest/search\?.*properties=.*".to_string()),
+        )
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(mock_results.to_string())
+        .create();
+
+    let jira = Jira::new(server.url(), Credentials::Anonymous).unwrap();
+    let options = SearchOptions::default()
+        .as_builder()
+        .properties(vec!["summary", "status"])
+        .build();
+
+    let result = jira.search().list("project = TEST", &options);
+
+    assert!(result.is_ok());
+    let search_results = result.unwrap();
+    assert_eq!(search_results.total, 1);
+    assert_eq!(search_results.issues[0].key, "TEST-1");
+}
+
+#[test]
 fn test_search_error_invalid_jql() {
     let mut server = mockito::Server::new();
 
