@@ -10,6 +10,7 @@ use crate::attachments::Attachments;
 use crate::boards::Boards;
 use crate::components::Components;
 use crate::core::{ClientCore, RequestContext};
+use crate::groups::Groups;
 use crate::issues::Issues;
 use crate::projects::Projects;
 use crate::rep::Session;
@@ -17,6 +18,7 @@ use crate::resolution::Resolution;
 use crate::search::Search;
 use crate::sprints::Sprints;
 use crate::transitions::Transitions;
+use crate::users::Users;
 use crate::versions::Versions;
 use crate::{Credentials, Error, Result};
 
@@ -246,6 +248,32 @@ impl Jira {
     #[tracing::instrument]
     pub fn resolution(&self) -> Resolution {
         Resolution::new(self)
+    }
+
+    /// Returns the users interface for working with Jira users
+    ///
+    /// This interface provides methods to search for users, get user details,
+    /// and find users assignable to projects and issues.
+    ///
+    /// # Returns
+    ///
+    /// A `Users` instance configured with this client
+    #[tracing::instrument]
+    pub fn users(&self) -> Users {
+        Users::new(self)
+    }
+
+    /// Returns the groups interface for working with Jira groups
+    ///
+    /// This interface provides methods to list groups, get group members,
+    /// create and delete groups, and manage group membership.
+    ///
+    /// # Returns
+    ///
+    /// A `Groups` instance configured with this client
+    #[tracing::instrument]
+    pub fn groups(&self) -> Groups {
+        Groups::new(self)
     }
 
     /// Retrieves the current user's session information from Jira
@@ -581,6 +609,82 @@ impl Jira {
         let data = self.core.prepare_json_body(body)?;
         debug!("Json PUT request sent");
         self.request::<D>(Method::PUT, api_name, endpoint, Some(data))
+    }
+
+    /// Sends a POST request with multipart/form-data
+    ///
+    /// # Arguments
+    ///
+    /// * `api_name` - Name of the API: like "agile" or "api"
+    /// * `endpoint` - API endpoint path
+    /// * `form` - Multipart form data
+    ///
+    /// # Returns
+    ///
+    /// `Result<D>` - Response deserialized into type `D`
+    pub fn post_multipart<D>(
+        &self,
+        api_name: &str,
+        endpoint: &str,
+        form: reqwest::blocking::multipart::Form,
+    ) -> Result<D>
+    where
+        D: DeserializeOwned,
+    {
+        let ctx = RequestContext::new("POST", endpoint);
+        let _span = ctx.create_span().entered();
+
+        let url = self.core.build_url(api_name, endpoint)?;
+        debug!(
+            correlation_id = %ctx.correlation_id,
+            url = %url,
+            "Building multipart request URL"
+        );
+
+        // Generate OAuth header if using OAuth 1.0a
+        #[cfg(feature = "oauth")]
+        let oauth_header = self.core.get_oauth_header("POST", url.as_str())?;
+
+        let mut req = self
+            .client
+            .request(Method::POST, url)
+            .header("X-Atlassian-Token", "no-check")
+            .header("X-Correlation-ID", &ctx.correlation_id)
+            .multipart(form);
+
+        // Apply OAuth header if present
+        #[cfg(feature = "oauth")]
+        if let Some(header) = oauth_header {
+            req = req.header(reqwest::header::AUTHORIZATION, header);
+        }
+
+        req = self.core.apply_credentials_sync(req);
+
+        debug!(
+            correlation_id = %ctx.correlation_id,
+            "Sending multipart request"
+        );
+
+        (|| {
+            let mut res = req.send()?;
+            let status = res.status();
+
+            let mut response_body = String::new();
+            res.read_to_string(&mut response_body)?;
+
+            debug!(
+                correlation_id = %ctx.correlation_id,
+                status = %status,
+                response_size = response_body.len(),
+                "Received response"
+            );
+
+            let response = self.core.process_response(status, &response_body)?;
+
+            ctx.finish(false);
+
+            Ok(response)
+        })()
     }
 
     #[tracing::instrument(skip(self, body))]

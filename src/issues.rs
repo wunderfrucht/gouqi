@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use url::form_urlencoded;
 
 // Ours
+use crate::attachments::AttachmentResponse;
 use crate::relationships::{GraphOptions, IssueRelationships, RelationshipGraph};
 use crate::sync::Jira;
 use crate::{
@@ -120,6 +121,292 @@ pub struct EditCustomIssue<CustomFields> {
     pub fields: CustomFields,
 }
 
+/// Options for updating issues
+///
+/// These options control various aspects of the issue update operation,
+/// including notifications, security overrides, and response behavior.
+///
+/// # Examples
+///
+/// ```rust
+/// use gouqi::issues::IssueUpdateOptions;
+///
+/// // Disable notifications during update
+/// let options = IssueUpdateOptions::builder()
+///     .notify_users(false)
+///     .build();
+///
+/// // Return the updated issue in response
+/// let options = IssueUpdateOptions::builder()
+///     .return_issue(true)
+///     .build();
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct IssueUpdateOptions {
+    /// Whether to send email notifications to watchers (default: true)
+    pub notify_users: Option<bool>,
+
+    /// Whether to update fields that are not on the screen (default: false)
+    pub override_screen_security: Option<bool>,
+
+    /// Whether to update fields even if they're marked as non-editable (default: false)
+    pub override_editable_flag: Option<bool>,
+
+    /// Whether to return the updated issue in the response (default: false)
+    /// When true, the response will include the updated issue data
+    #[allow(clippy::struct_field_names)]
+    pub return_issue: bool,
+
+    /// Fields to expand in the returned issue (only used when return_issue is true)
+    pub expand: Option<Vec<String>>,
+}
+
+impl IssueUpdateOptions {
+    /// Create a new builder for IssueUpdateOptions
+    pub fn builder() -> IssueUpdateOptionsBuilder {
+        IssueUpdateOptionsBuilder::default()
+    }
+
+    /// Convert options to query string parameters
+    fn to_query_string(&self) -> String {
+        let mut params = Vec::new();
+
+        if let Some(notify) = self.notify_users {
+            params.push(format!("notifyUsers={}", notify));
+        }
+
+        if let Some(override_screen) = self.override_screen_security {
+            params.push(format!("overrideScreenSecurity={}", override_screen));
+        }
+
+        if let Some(override_editable) = self.override_editable_flag {
+            params.push(format!("overrideEditableFlag={}", override_editable));
+        }
+
+        if self.return_issue {
+            params.push("returnIssue=true".to_string());
+        }
+
+        if let Some(ref expand) = self.expand {
+            if !expand.is_empty() {
+                params.push(format!("expand={}", expand.join(",")));
+            }
+        }
+
+        params.join("&")
+    }
+}
+
+/// Builder for IssueUpdateOptions
+#[derive(Debug, Default)]
+pub struct IssueUpdateOptionsBuilder {
+    notify_users: Option<bool>,
+    override_screen_security: Option<bool>,
+    override_editable_flag: Option<bool>,
+    return_issue: bool,
+    expand: Option<Vec<String>>,
+}
+
+impl IssueUpdateOptionsBuilder {
+    /// Set whether to send notifications to watchers
+    ///
+    /// When set to false, users watching the issue will not receive email notifications.
+    /// This is useful for bulk operations or automated updates.
+    pub fn notify_users(mut self, notify: bool) -> Self {
+        self.notify_users = Some(notify);
+        self
+    }
+
+    /// Set whether to override screen security
+    ///
+    /// When set to true, allows updating fields that are not visible on the edit screen.
+    pub fn override_screen_security(mut self, override_security: bool) -> Self {
+        self.override_screen_security = Some(override_security);
+        self
+    }
+
+    /// Set whether to override the editable flag
+    ///
+    /// When set to true, allows updating fields even if they're marked as non-editable.
+    pub fn override_editable_flag(mut self, override_editable: bool) -> Self {
+        self.override_editable_flag = Some(override_editable);
+        self
+    }
+
+    /// Set whether to return the updated issue in the response
+    ///
+    /// When set to true, the API will return the updated issue data.
+    /// This is required for the `update_and_return` method.
+    pub fn return_issue(mut self, return_issue: bool) -> Self {
+        self.return_issue = return_issue;
+        self
+    }
+
+    /// Set which fields to expand in the returned issue
+    ///
+    /// Only used when return_issue is true.
+    /// Common values: "renderedFields", "names", "schema", "transitions", "operations", "changelog"
+    pub fn expand(mut self, expand: Vec<String>) -> Self {
+        self.expand = Some(expand);
+        self
+    }
+
+    /// Build the IssueUpdateOptions
+    pub fn build(self) -> IssueUpdateOptions {
+        IssueUpdateOptions {
+            notify_users: self.notify_users,
+            override_screen_security: self.override_screen_security,
+            override_editable_flag: self.override_editable_flag,
+            return_issue: self.return_issue,
+            expand: self.expand,
+        }
+    }
+}
+
+/// Options for retrieving issues
+///
+/// This struct allows you to customize how issues are fetched from Jira.
+/// You can control which fields are returned, what data to expand, and other options.
+///
+/// # Examples
+///
+/// ```
+/// use gouqi::issues::IssueGetOptions;
+///
+/// let options = IssueGetOptions::builder()
+///     .fields(vec!["summary".to_string(), "status".to_string()])
+///     .expand(vec!["changelog".to_string()])
+///     .build();
+/// ```
+#[derive(Default, Debug, Clone)]
+pub struct IssueGetOptions {
+    /// Fields to include in the response
+    pub fields: Option<Vec<String>>,
+
+    /// Fields to expand in the response
+    pub expand: Option<Vec<String>>,
+
+    /// Properties to include in the response
+    pub properties: Option<Vec<String>>,
+
+    /// Whether to include update history
+    pub update_history: Option<bool>,
+
+    /// Whether to use field keys instead of field IDs
+    pub fields_by_keys: Option<bool>,
+}
+
+impl IssueGetOptions {
+    /// Create a new builder for IssueGetOptions
+    pub fn builder() -> IssueGetOptionsBuilder {
+        IssueGetOptionsBuilder::default()
+    }
+
+    /// Convert options to query string parameters
+    pub fn to_query_string(&self) -> Option<String> {
+        use url::form_urlencoded;
+        let mut serializer = form_urlencoded::Serializer::new(String::new());
+        let mut has_params = false;
+
+        if let Some(ref fields) = self.fields {
+            serializer.append_pair("fields", &fields.join(","));
+            has_params = true;
+        }
+        if let Some(ref expand) = self.expand {
+            serializer.append_pair("expand", &expand.join(","));
+            has_params = true;
+        }
+        if let Some(ref properties) = self.properties {
+            serializer.append_pair("properties", &properties.join(","));
+            has_params = true;
+        }
+        if let Some(update_history) = self.update_history {
+            serializer.append_pair("updateHistory", &update_history.to_string());
+            has_params = true;
+        }
+        if let Some(fields_by_keys) = self.fields_by_keys {
+            serializer.append_pair("fieldsByKeys", &fields_by_keys.to_string());
+            has_params = true;
+        }
+
+        if has_params {
+            Some(serializer.finish())
+        } else {
+            None
+        }
+    }
+}
+
+/// Builder for IssueGetOptions
+#[derive(Default, Debug)]
+pub struct IssueGetOptionsBuilder {
+    fields: Option<Vec<String>>,
+    expand: Option<Vec<String>>,
+    properties: Option<Vec<String>>,
+    update_history: Option<bool>,
+    fields_by_keys: Option<bool>,
+}
+
+impl IssueGetOptionsBuilder {
+    /// Set which fields to include in the response
+    ///
+    /// By default, all navigable fields are returned.
+    /// You can specify a subset of fields to reduce the response size.
+    pub fn fields<I, S>(mut self, fields: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.fields = Some(fields.into_iter().map(|s| s.into()).collect());
+        self
+    }
+
+    /// Set which fields to expand in the response
+    ///
+    /// Common values: "renderedFields", "names", "schema", "transitions", "operations", "changelog"
+    pub fn expand<I, S>(mut self, expand: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.expand = Some(expand.into_iter().map(|s| s.into()).collect());
+        self
+    }
+
+    /// Set which properties to include in the response
+    pub fn properties<I, S>(mut self, properties: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.properties = Some(properties.into_iter().map(|s| s.into()).collect());
+        self
+    }
+
+    /// Set whether to include update history
+    pub fn update_history(mut self, value: bool) -> Self {
+        self.update_history = Some(value);
+        self
+    }
+
+    /// Set whether to use field keys instead of field IDs
+    pub fn fields_by_keys(mut self, value: bool) -> Self {
+        self.fields_by_keys = Some(value);
+        self
+    }
+
+    /// Build the IssueGetOptions
+    pub fn build(self) -> IssueGetOptions {
+        IssueGetOptions {
+            fields: self.fields,
+            expand: self.expand,
+            properties: self.properties,
+            update_history: self.update_history,
+            fields_by_keys: self.fields_by_keys,
+        }
+    }
+}
+
 #[derive(Deserialize, Debug)]
 pub struct IssueResults {
     pub expand: Option<String>,
@@ -129,6 +416,248 @@ pub struct IssueResults {
     pub start_at: u64,
     pub total: u64,
     pub issues: Vec<Issue>,
+}
+
+/// Options for deleting issues
+///
+/// These options control the behavior when deleting an issue.
+///
+/// # Examples
+///
+/// ```rust
+/// use gouqi::issues::IssueDeleteOptions;
+///
+/// // Delete an issue and its subtasks
+/// let options = IssueDeleteOptions::builder()
+///     .delete_subtasks(true)
+///     .build();
+/// ```
+#[derive(Default, Debug, Clone)]
+pub struct IssueDeleteOptions {
+    /// Whether to delete subtasks when deleting parent issue
+    pub delete_subtasks: Option<bool>,
+}
+
+impl IssueDeleteOptions {
+    /// Create a new builder for IssueDeleteOptions
+    pub fn builder() -> IssueDeleteOptionsBuilder {
+        IssueDeleteOptionsBuilder::default()
+    }
+
+    /// Convert options to query string parameters
+    fn to_query_string(&self) -> String {
+        let mut params = vec![];
+        if let Some(delete_subtasks) = self.delete_subtasks {
+            params.push(format!("deleteSubtasks={}", delete_subtasks));
+        }
+        params.join("&")
+    }
+}
+
+/// Builder for IssueDeleteOptions
+#[derive(Default, Debug)]
+pub struct IssueDeleteOptionsBuilder {
+    delete_subtasks: Option<bool>,
+}
+
+impl IssueDeleteOptionsBuilder {
+    /// Set whether to delete subtasks when deleting parent issue
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use gouqi::issues::IssueDeleteOptions;
+    /// let options = IssueDeleteOptions::builder()
+    ///     .delete_subtasks(true)
+    ///     .build();
+    /// ```
+    pub fn delete_subtasks(mut self, value: bool) -> Self {
+        self.delete_subtasks = Some(value);
+        self
+    }
+
+    /// Build the IssueDeleteOptions
+    pub fn build(self) -> IssueDeleteOptions {
+        IssueDeleteOptions {
+            delete_subtasks: self.delete_subtasks,
+        }
+    }
+}
+
+/// Options for how to adjust the remaining estimate when logging work
+///
+/// When logging work on an issue, you can control how the remaining estimate is adjusted.
+/// See [Jira API documentation](https://docs.atlassian.com/software/jira/docs/api/REST/latest/#api/2/issue-addWorklog)
+/// for more information.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AdjustEstimate {
+    /// Automatically adjust the remaining estimate (default behavior)
+    /// The remaining estimate will be reduced by the time logged
+    Auto,
+
+    /// Set a new remaining estimate value
+    /// Provide the new estimate value (e.g., "2h", "1d 4h")
+    New(String),
+
+    /// Reduce the remaining estimate by the specified amount
+    /// Provide the amount to reduce by (e.g., "30m", "1h")
+    Manual(String),
+
+    /// Do not adjust the remaining estimate at all
+    Leave,
+}
+
+impl Default for AdjustEstimate {
+    fn default() -> Self {
+        Self::Auto
+    }
+}
+
+/// Options for worklog operations
+///
+/// Controls various parameters when adding or updating worklogs, such as how to adjust
+/// the remaining time estimate and whether to notify users.
+///
+/// # Examples
+///
+/// ```rust
+/// use gouqi::issues::{WorklogOptions, AdjustEstimate};
+///
+/// // Set a new estimate when logging work
+/// let options = WorklogOptions::builder()
+///     .adjust_estimate(AdjustEstimate::New("2h".to_string()))
+///     .notify_users(false)
+///     .build();
+///
+/// // Reduce estimate by a specific amount
+/// let options = WorklogOptions::builder()
+///     .adjust_estimate(AdjustEstimate::Manual("30m".to_string()))
+///     .build();
+///
+/// // Don't adjust the estimate at all
+/// let options = WorklogOptions::builder()
+///     .adjust_estimate(AdjustEstimate::Leave)
+///     .build();
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct WorklogOptions {
+    /// How to adjust the remaining time estimate
+    pub adjust_estimate: Option<AdjustEstimate>,
+
+    /// Whether to send email notifications to watchers (default: true)
+    pub notify_users: Option<bool>,
+
+    /// Whether to update fields even if they're marked as non-editable (default: false)
+    pub override_editable_flag: Option<bool>,
+}
+
+impl WorklogOptions {
+    /// Create a new builder for WorklogOptions
+    pub fn builder() -> WorklogOptionsBuilder {
+        WorklogOptionsBuilder::default()
+    }
+
+    /// Convert options to query string parameters
+    fn to_query_string(&self) -> String {
+        let mut params = Vec::new();
+
+        if let Some(ref adjust) = self.adjust_estimate {
+            match adjust {
+                AdjustEstimate::Auto => {
+                    params.push("adjustEstimate=auto".to_string());
+                }
+                AdjustEstimate::New(value) => {
+                    params.push("adjustEstimate=new".to_string());
+                    params.push(format!(
+                        "newEstimate={}",
+                        form_urlencoded::byte_serialize(value.as_bytes()).collect::<String>()
+                    ));
+                }
+                AdjustEstimate::Manual(value) => {
+                    params.push("adjustEstimate=manual".to_string());
+                    params.push(format!(
+                        "reduceBy={}",
+                        form_urlencoded::byte_serialize(value.as_bytes()).collect::<String>()
+                    ));
+                }
+                AdjustEstimate::Leave => {
+                    params.push("adjustEstimate=leave".to_string());
+                }
+            }
+        }
+
+        if let Some(notify) = self.notify_users {
+            params.push(format!("notifyUsers={}", notify));
+        }
+
+        if let Some(override_editable) = self.override_editable_flag {
+            params.push(format!("overrideEditableFlag={}", override_editable));
+        }
+
+        params.join("&")
+    }
+}
+
+/// Builder for WorklogOptions
+#[derive(Debug, Default)]
+pub struct WorklogOptionsBuilder {
+    adjust_estimate: Option<AdjustEstimate>,
+    notify_users: Option<bool>,
+    override_editable_flag: Option<bool>,
+}
+
+impl WorklogOptionsBuilder {
+    /// Set how to adjust the remaining estimate
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use gouqi::issues::{WorklogOptions, AdjustEstimate};
+    /// // Set a new estimate
+    /// let options = WorklogOptions::builder()
+    ///     .adjust_estimate(AdjustEstimate::New("2h".to_string()))
+    ///     .build();
+    ///
+    /// // Reduce by a specific amount
+    /// let options = WorklogOptions::builder()
+    ///     .adjust_estimate(AdjustEstimate::Manual("30m".to_string()))
+    ///     .build();
+    ///
+    /// // Don't adjust at all
+    /// let options = WorklogOptions::builder()
+    ///     .adjust_estimate(AdjustEstimate::Leave)
+    ///     .build();
+    /// ```
+    pub fn adjust_estimate(mut self, adjust: AdjustEstimate) -> Self {
+        self.adjust_estimate = Some(adjust);
+        self
+    }
+
+    /// Set whether to send notifications to watchers
+    ///
+    /// When set to false, users watching the issue will not receive email notifications.
+    /// This is useful for bulk operations or automated updates.
+    pub fn notify_users(mut self, notify: bool) -> Self {
+        self.notify_users = Some(notify);
+        self
+    }
+
+    /// Set whether to override the editable flag
+    ///
+    /// When set to true, allows updating fields even if they're marked as non-editable.
+    pub fn override_editable_flag(mut self, override_editable: bool) -> Self {
+        self.override_editable_flag = Some(override_editable);
+        self
+    }
+
+    /// Build the WorklogOptions
+    pub fn build(self) -> WorklogOptions {
+        WorklogOptions {
+            adjust_estimate: self.adjust_estimate,
+            notify_users: self.notify_users,
+            override_editable_flag: self.override_editable_flag,
+        }
+    }
 }
 
 /// Request body for adding a comment (V2 API - plain text)
@@ -259,6 +788,35 @@ impl Issues {
         self.jira.get("api", &format!("/issue/{}", id.into()))
     }
 
+    /// Get a single issue with custom options
+    ///
+    /// This method allows you to specify which fields to retrieve, what to expand, and other options.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use gouqi::{Jira, Credentials};
+    /// use gouqi::issues::IssueGetOptions;
+    ///
+    /// let jira = Jira::new("https://example.atlassian.net", Credentials::Anonymous).unwrap();
+    /// let options = IssueGetOptions::builder()
+    ///     .fields(vec!["summary".to_string(), "status".to_string()])
+    ///     .expand(vec!["changelog".to_string()])
+    ///     .build();
+    /// let issue = jira.issues().get_with_options("ISSUE-123", &options).unwrap();
+    /// ```
+    pub fn get_with_options<I>(&self, id: I, options: &IssueGetOptions) -> Result<Issue>
+    where
+        I: Into<String>,
+    {
+        let url = if let Some(query) = options.to_query_string() {
+            format!("/issue/{}?{}", id.into(), query)
+        } else {
+            format!("/issue/{}", id.into())
+        };
+        self.jira.get("api", &url)
+    }
+
     /// Get a single custom issue
     ///
     /// See this [jira docs](https://docs.atlassian.com/jira-software/REST/latest/#agile/1.0/issue)
@@ -300,6 +858,100 @@ impl Issues {
         T: Serialize,
     {
         self.jira.put("api", &format!("/issue/{}", id.into()), data)
+    }
+
+    /// Update an issue with options
+    ///
+    /// This method allows fine-grained control over the update operation, including
+    /// disabling notifications, overriding security settings, and controlling response behavior.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use gouqi::{Credentials, Jira};
+    /// # use gouqi::issues::{EditIssue, IssueUpdateOptions};
+    /// # use std::collections::BTreeMap;
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
+    /// // Update without sending notifications
+    /// let mut fields = BTreeMap::new();
+    /// fields.insert("summary".to_string(), serde_json::Value::String("New summary".to_string()));
+    /// let edit = EditIssue { fields };
+    ///
+    /// let options = IssueUpdateOptions::builder()
+    ///     .notify_users(false)
+    ///     .build();
+    ///
+    /// jira.issues().update_with_options("PROJ-123", edit, &options)?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/latest/#api/2/issue-editIssue)
+    /// for more information
+    pub fn update_with_options<I, T>(
+        &self,
+        id: I,
+        data: EditIssue<T>,
+        options: &IssueUpdateOptions,
+    ) -> Result<()>
+    where
+        I: Into<String>,
+        T: Serialize,
+    {
+        let query_string = options.to_query_string();
+        let path = if query_string.is_empty() {
+            format!("/issue/{}", id.into())
+        } else {
+            format!("/issue/{}?{}", id.into(), query_string)
+        };
+        self.jira.put("api", &path, data)
+    }
+
+    /// Update an issue and return the updated issue
+    ///
+    /// This method updates an issue and returns the updated issue data in the response.
+    /// This is useful when you need to see the result of the update immediately.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use gouqi::{Credentials, Jira};
+    /// # use gouqi::issues::{EditIssue, IssueUpdateOptions};
+    /// # use std::collections::BTreeMap;
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
+    /// // Update and get the updated issue back
+    /// let mut fields = BTreeMap::new();
+    /// fields.insert("summary".to_string(), serde_json::Value::String("Updated summary".to_string()));
+    /// let edit = EditIssue { fields };
+    ///
+    /// let options = IssueUpdateOptions::builder()
+    ///     .notify_users(false)
+    ///     .return_issue(true)
+    ///     .expand(vec!["changelog".to_string()])
+    ///     .build();
+    ///
+    /// let updated_issue = jira.issues().update_and_return("PROJ-123", edit, &options)?;
+    /// println!("Updated: {}", updated_issue.key);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/latest/#api/2/issue-editIssue)
+    /// for more information
+    pub fn update_and_return<I, T>(
+        &self,
+        id: I,
+        data: EditIssue<T>,
+        options: &IssueUpdateOptions,
+    ) -> Result<Issue>
+    where
+        I: Into<String>,
+        T: Serialize,
+    {
+        let mut opts = options.clone();
+        opts.return_issue = true; // Ensure return_issue is set
+
+        let query_string = opts.to_query_string();
+        let path = format!("/issue/{}?{}", id.into(), query_string);
+        self.jira.put("api", &path, data)
     }
 
     /// Edit an issue
@@ -716,6 +1368,57 @@ impl Issues {
         Ok(())
     }
 
+    /// Delete an issue with options
+    ///
+    /// Deletes an issue from Jira with additional options such as deleting subtasks.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The issue key (e.g., "PROJ-123") or ID
+    /// * `options` - Options for the delete operation
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use gouqi::{Jira, Credentials};
+    /// # use gouqi::issues::IssueDeleteOptions;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let jira = Jira::new("https://jira.example.com", Credentials::Basic("user".to_string(), "token".to_string()))?;
+    /// let options = IssueDeleteOptions::builder()
+    ///     .delete_subtasks(true)
+    ///     .build();
+    /// jira.issues().delete_with_options("PROJ-123", options)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - The issue does not exist
+    /// - The user lacks permission to delete the issue
+    /// - The issue cannot be deleted due to workflow restrictions
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the issue cannot be deleted due to workflow restrictions
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-deleteIssue)
+    /// for more information
+    pub fn delete_with_options<I>(&self, id: I, options: IssueDeleteOptions) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        let query = options.to_query_string();
+        let path = if query.is_empty() {
+            format!("/issue/{}", id.into())
+        } else {
+            format!("/issue/{}?{}", id.into(), query)
+        };
+        self.jira.delete::<crate::EmptyResponse>("api", &path)?;
+        Ok(())
+    }
+
     /// Archive an issue
     ///
     /// Archives an issue in Jira. Archived issues are hidden from most views
@@ -881,6 +1584,105 @@ impl Issues {
             &format!("/issue/{}/worklog/{}", issue_key.into(), worklog_id.into()),
             worklog,
         )
+    }
+
+    /// Add a worklog with options for time tracking and notifications
+    ///
+    /// This method allows you to control how the remaining estimate is adjusted when logging work,
+    /// and whether to send notifications to watchers.
+    ///
+    /// # Arguments
+    ///
+    /// * `issue_key` - The issue key (e.g., "PROJ-123") or ID
+    /// * `worklog` - The worklog data to add
+    /// * `options` - Options controlling estimate adjustment and notifications
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use gouqi::{Credentials, Jira, WorklogInput};
+    /// # use gouqi::issues::{WorklogOptions, AdjustEstimate};
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
+    /// // Log work and set a new remaining estimate
+    /// let worklog = WorklogInput::new(7200).with_comment("Implemented feature");
+    /// let options = WorklogOptions::builder()
+    ///     .adjust_estimate(AdjustEstimate::New("1d".to_string()))
+    ///     .notify_users(false)
+    ///     .build();
+    ///
+    /// let created = jira.issues().add_worklog_with_options("PROJ-123", worklog, &options)?;
+    /// println!("Created worklog: {}", created.id);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn add_worklog_with_options<K>(
+        &self,
+        issue_key: K,
+        worklog: crate::WorklogInput,
+        options: &WorklogOptions,
+    ) -> Result<crate::Worklog>
+    where
+        K: Into<String>,
+    {
+        let query_string = options.to_query_string();
+        let path = if query_string.is_empty() {
+            format!("/issue/{}/worklog", issue_key.into())
+        } else {
+            format!("/issue/{}/worklog?{}", issue_key.into(), query_string)
+        };
+        self.jira.post("api", &path, worklog)
+    }
+
+    /// Update a worklog with options for time tracking and notifications
+    ///
+    /// This method allows you to control how the remaining estimate is adjusted when updating work,
+    /// and whether to send notifications to watchers.
+    ///
+    /// # Arguments
+    ///
+    /// * `issue_key` - The issue key (e.g., "PROJ-123") or ID
+    /// * `worklog_id` - The ID of the worklog to update
+    /// * `worklog` - The updated worklog data
+    /// * `options` - Options controlling estimate adjustment and notifications
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use gouqi::{Credentials, Jira, WorklogInput};
+    /// # use gouqi::issues::{WorklogOptions, AdjustEstimate};
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous).unwrap();
+    /// // Update work and reduce the estimate by a specific amount
+    /// let worklog = WorklogInput::new(3600).with_comment("Updated time");
+    /// let options = WorklogOptions::builder()
+    ///     .adjust_estimate(AdjustEstimate::Manual("30m".to_string()))
+    ///     .notify_users(false)
+    ///     .build();
+    ///
+    /// let updated = jira.issues().update_worklog_with_options("PROJ-123", "10001", worklog, &options)?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn update_worklog_with_options<K, W>(
+        &self,
+        issue_key: K,
+        worklog_id: W,
+        worklog: crate::WorklogInput,
+        options: &WorklogOptions,
+    ) -> Result<crate::Worklog>
+    where
+        K: Into<String>,
+        W: Into<String>,
+    {
+        let query_string = options.to_query_string();
+        let path = if query_string.is_empty() {
+            format!("/issue/{}/worklog/{}", issue_key.into(), worklog_id.into())
+        } else {
+            format!(
+                "/issue/{}/worklog/{}?{}",
+                issue_key.into(),
+                worklog_id.into(),
+                query_string
+            )
+        };
+        self.jira.put("api", &path, worklog)
     }
 
     /// Delete a worklog
@@ -1127,6 +1929,51 @@ impl Issues {
     pub fn bulk_update(&self, updates: BulkUpdateRequest) -> Result<BulkUpdateResponse> {
         self.jira.put("api", "/issue/bulk", updates)
     }
+
+    /// Upload one or more attachments to an issue
+    ///
+    /// # Arguments
+    ///
+    /// * `issue_key` - The issue key (e.g., "PROJ-123")
+    /// * `files` - Vector of tuples containing (filename, file_content)
+    ///
+    /// # Returns
+    ///
+    /// `Result<Vec<AttachmentResponse>>` - Array of uploaded attachment metadata
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use gouqi::{Jira, Credentials};
+    ///
+    /// let jira = Jira::new("https://example.atlassian.net", Credentials::Anonymous).unwrap();
+    /// let file_content = std::fs::read("document.pdf").unwrap();
+    /// let attachments = jira.issues()
+    ///     .upload_attachment("PROJ-123", vec![("document.pdf", file_content)])
+    ///     .unwrap();
+    /// ```
+    pub fn upload_attachment<I>(
+        &self,
+        issue_key: I,
+        files: Vec<(&str, Vec<u8>)>,
+    ) -> Result<Vec<AttachmentResponse>>
+    where
+        I: Into<String>,
+    {
+        let mut form = reqwest::blocking::multipart::Form::new();
+
+        for (filename, content) in files {
+            let part =
+                reqwest::blocking::multipart::Part::bytes(content).file_name(filename.to_string());
+            form = form.part("file", part);
+        }
+
+        self.jira.post_multipart(
+            "api",
+            &format!("/issue/{}/attachments", issue_key.into()),
+            form,
+        )
+    }
 }
 
 /// Provides an iterator over multiple pages of search results
@@ -1208,6 +2055,39 @@ impl AsyncIssues {
         self.jira.get("api", &format!("/issue/{}", id.into())).await
     }
 
+    /// Get a single issue with custom options
+    ///
+    /// This method allows you to specify which fields to retrieve, what to expand, and other options.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// use gouqi::{Credentials, r#async::Jira};
+    /// use gouqi::issues::IssueGetOptions;
+    ///
+    /// let jira = Jira::new("https://example.atlassian.net", Credentials::Anonymous)?;
+    /// let options = IssueGetOptions::builder()
+    ///     .fields(vec!["summary".to_string(), "status".to_string()])
+    ///     .expand(vec!["changelog".to_string()])
+    ///     .build();
+    /// let issue = jira.issues().get_with_options("ISSUE-123", &options).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn get_with_options<I>(&self, id: I, options: &IssueGetOptions) -> Result<Issue>
+    where
+        I: Into<String>,
+    {
+        let url = if let Some(query) = options.to_query_string() {
+            format!("/issue/{}?{}", id.into(), query)
+        } else {
+            format!("/issue/{}", id.into())
+        };
+        self.jira.get("api", &url).await
+    }
+
     /// Create a new issue
     ///
     /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/latest/#api/2/issue-createIssue)
@@ -1228,6 +2108,104 @@ impl AsyncIssues {
         self.jira
             .put("api", &format!("/issue/{}", id.into()), data)
             .await
+    }
+
+    /// Update an issue with options (async)
+    ///
+    /// This method allows fine-grained control over the update operation, including
+    /// disabling notifications, overriding security settings, and controlling response behavior.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use gouqi::{Credentials, r#async::Jira};
+    /// # use gouqi::issues::{EditIssue, IssueUpdateOptions};
+    /// # use std::collections::BTreeMap;
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous)?;
+    /// // Update without sending notifications
+    /// let mut fields = BTreeMap::new();
+    /// fields.insert("summary".to_string(), serde_json::Value::String("New summary".to_string()));
+    /// let edit = EditIssue { fields };
+    ///
+    /// let options = IssueUpdateOptions::builder()
+    ///     .notify_users(false)
+    ///     .build();
+    ///
+    /// jira.issues().update_with_options("PROJ-123", edit, &options).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/latest/#api/2/issue-editIssue)
+    /// for more information
+    pub async fn update_with_options<I, T>(
+        &self,
+        id: I,
+        data: EditIssue<T>,
+        options: &IssueUpdateOptions,
+    ) -> Result<()>
+    where
+        I: Into<String>,
+        T: Serialize,
+    {
+        let query_string = options.to_query_string();
+        let path = if query_string.is_empty() {
+            format!("/issue/{}", id.into())
+        } else {
+            format!("/issue/{}?{}", id.into(), query_string)
+        };
+        self.jira.put("api", &path, data).await
+    }
+
+    /// Update an issue and return the updated issue (async)
+    ///
+    /// This method updates an issue and returns the updated issue data in the response.
+    /// This is useful when you need to see the result of the update immediately.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use gouqi::{Credentials, r#async::Jira};
+    /// # use gouqi::issues::{EditIssue, IssueUpdateOptions};
+    /// # use std::collections::BTreeMap;
+    /// # let jira = Jira::new("http://localhost", Credentials::Anonymous)?;
+    /// // Update and get the updated issue back
+    /// let mut fields = BTreeMap::new();
+    /// fields.insert("summary".to_string(), serde_json::Value::String("Updated summary".to_string()));
+    /// let edit = EditIssue { fields };
+    ///
+    /// let options = IssueUpdateOptions::builder()
+    ///     .notify_users(false)
+    ///     .return_issue(true)
+    ///     .expand(vec!["changelog".to_string()])
+    ///     .build();
+    ///
+    /// let updated_issue = jira.issues().update_and_return("PROJ-123", edit, &options).await?;
+    /// println!("Updated: {}", updated_issue.key);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/latest/#api/2/issue-editIssue)
+    /// for more information
+    pub async fn update_and_return<I, T>(
+        &self,
+        id: I,
+        data: EditIssue<T>,
+        options: &IssueUpdateOptions,
+    ) -> Result<Issue>
+    where
+        I: Into<String>,
+        T: Serialize,
+    {
+        let mut opts = options.clone();
+        opts.return_issue = true; // Ensure return_issue is set
+
+        let query_string = opts.to_query_string();
+        let path = format!("/issue/{}?{}", id.into(), query_string);
+        self.jira.put("api", &path, data).await
     }
 
     /// Edit an issue
@@ -1616,6 +2594,61 @@ impl AsyncIssues {
         Ok(())
     }
 
+    /// Delete an issue with options (async)
+    ///
+    /// Deletes an issue from Jira with additional options such as deleting subtasks.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The issue key (e.g., "PROJ-123") or ID
+    /// * `options` - Options for the delete operation
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// use gouqi::{Credentials, r#async::Jira};
+    /// use gouqi::issues::IssueDeleteOptions;
+    ///
+    /// let jira = Jira::new("https://jira.example.com", Credentials::Anonymous)?;
+    /// let options = IssueDeleteOptions::builder()
+    ///     .delete_subtasks(true)
+    ///     .build();
+    /// jira.issues().delete_with_options("PROJ-123", options).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - The issue does not exist
+    /// - The user lacks permission to delete the issue
+    /// - The issue cannot be deleted due to workflow restrictions
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the issue cannot be deleted due to workflow restrictions
+    ///
+    /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-deleteIssue)
+    /// for more information
+    pub async fn delete_with_options<I>(&self, id: I, options: IssueDeleteOptions) -> Result<()>
+    where
+        I: Into<String>,
+    {
+        let query = options.to_query_string();
+        let path = if query.is_empty() {
+            format!("/issue/{}", id.into())
+        } else {
+            format!("/issue/{}?{}", id.into(), query)
+        };
+        self.jira
+            .delete::<crate::EmptyResponse>("api", &path)
+            .await?;
+        Ok(())
+    }
+
     /// Archive an issue (async)
     ///
     /// See this [jira docs](https://docs.atlassian.com/software/jira/docs/api/REST/8.13.8/#api/2/issue-archiveIssue)
@@ -1693,6 +2726,113 @@ impl AsyncIssues {
                 worklog,
             )
             .await
+    }
+
+    /// Add a worklog with options for time tracking and notifications (async)
+    ///
+    /// This method allows you to control how the remaining estimate is adjusted when logging work,
+    /// and whether to send notifications to watchers.
+    ///
+    /// # Arguments
+    ///
+    /// * `issue_key` - The issue key (e.g., "PROJ-123") or ID
+    /// * `worklog` - The worklog data to add
+    /// * `options` - Options controlling estimate adjustment and notifications
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// use gouqi::{Credentials, r#async::Jira, WorklogInput};
+    /// use gouqi::issues::{WorklogOptions, AdjustEstimate};
+    ///
+    /// let jira = Jira::new("http://localhost", Credentials::Anonymous)?;
+    /// // Log work and set a new remaining estimate
+    /// let worklog = WorklogInput::new(7200).with_comment("Implemented feature");
+    /// let options = WorklogOptions::builder()
+    ///     .adjust_estimate(AdjustEstimate::New("1d".to_string()))
+    ///     .notify_users(false)
+    ///     .build();
+    ///
+    /// let created = jira.issues().add_worklog_with_options("PROJ-123", worklog, &options).await?;
+    /// println!("Created worklog: {}", created.id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn add_worklog_with_options<K>(
+        &self,
+        issue_key: K,
+        worklog: crate::WorklogInput,
+        options: &WorklogOptions,
+    ) -> Result<crate::Worklog>
+    where
+        K: Into<String>,
+    {
+        let query_string = options.to_query_string();
+        let path = if query_string.is_empty() {
+            format!("/issue/{}/worklog", issue_key.into())
+        } else {
+            format!("/issue/{}/worklog?{}", issue_key.into(), query_string)
+        };
+        self.jira.post("api", &path, worklog).await
+    }
+
+    /// Update a worklog with options for time tracking and notifications (async)
+    ///
+    /// This method allows you to control how the remaining estimate is adjusted when updating work,
+    /// and whether to send notifications to watchers.
+    ///
+    /// # Arguments
+    ///
+    /// * `issue_key` - The issue key (e.g., "PROJ-123") or ID
+    /// * `worklog_id` - The ID of the worklog to update
+    /// * `worklog` - The updated worklog data
+    /// * `options` - Options controlling estimate adjustment and notifications
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// use gouqi::{Credentials, r#async::Jira, WorklogInput};
+    /// use gouqi::issues::{WorklogOptions, AdjustEstimate};
+    ///
+    /// let jira = Jira::new("http://localhost", Credentials::Anonymous)?;
+    /// // Update work and reduce the estimate by a specific amount
+    /// let worklog = WorklogInput::new(3600).with_comment("Updated time");
+    /// let options = WorklogOptions::builder()
+    ///     .adjust_estimate(AdjustEstimate::Manual("30m".to_string()))
+    ///     .notify_users(false)
+    ///     .build();
+    ///
+    /// let updated = jira.issues().update_worklog_with_options("PROJ-123", "10001", worklog, &options).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn update_worklog_with_options<K, W>(
+        &self,
+        issue_key: K,
+        worklog_id: W,
+        worklog: crate::WorklogInput,
+        options: &WorklogOptions,
+    ) -> Result<crate::Worklog>
+    where
+        K: Into<String>,
+        W: Into<String>,
+    {
+        let query_string = options.to_query_string();
+        let path = if query_string.is_empty() {
+            format!("/issue/{}/worklog/{}", issue_key.into(), worklog_id.into())
+        } else {
+            format!(
+                "/issue/{}/worklog/{}?{}",
+                issue_key.into(),
+                worklog_id.into(),
+                query_string
+            )
+        };
+        self.jira.put("api", &path, worklog).await
     }
 
     /// Delete a worklog (async)
@@ -1841,6 +2981,56 @@ impl AsyncIssues {
     /// This function will panic if any update fails validation
     pub async fn bulk_update(&self, updates: BulkUpdateRequest) -> Result<BulkUpdateResponse> {
         self.jira.put("api", "/issue/bulk", updates).await
+    }
+
+    /// Upload one or more attachments to an issue (async)
+    ///
+    /// # Arguments
+    ///
+    /// * `issue_key` - The issue key (e.g., "PROJ-123")
+    /// * `files` - Vector of tuples containing (filename, file_content)
+    ///
+    /// # Returns
+    ///
+    /// `Result<Vec<AttachmentResponse>>` - Array of uploaded attachment metadata
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// use gouqi::{Credentials, r#async::Jira};
+    ///
+    /// let jira = Jira::new("https://example.atlassian.net", Credentials::Anonymous)?;
+    /// let file_content = std::fs::read("document.pdf")?;
+    /// let attachments = jira.issues()
+    ///     .upload_attachment("PROJ-123", vec![("document.pdf", file_content)])
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn upload_attachment<I>(
+        &self,
+        issue_key: I,
+        files: Vec<(&str, Vec<u8>)>,
+    ) -> Result<Vec<AttachmentResponse>>
+    where
+        I: Into<String>,
+    {
+        let mut form = reqwest::multipart::Form::new();
+
+        for (filename, content) in files {
+            let part = reqwest::multipart::Part::bytes(content).file_name(filename.to_string());
+            form = form.part("file", part);
+        }
+
+        self.jira
+            .post_multipart(
+                "api",
+                &format!("/issue/{}/attachments", issue_key.into()),
+                form,
+            )
+            .await
     }
 }
 
