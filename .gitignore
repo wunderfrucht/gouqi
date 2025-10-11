@@ -5,6 +5,7 @@ Cargo.lock
 .vscode
 coverage/cobertura.xml
 .claude/settings.local.json
+.env
 
 # Analysis documents
 *_AUDIT.md
