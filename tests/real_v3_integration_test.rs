@@ -7,10 +7,10 @@ use std::env;
 #[test]
 fn test_real_v3_search_with_auto_injection() {
     // Skip if no token provided
-    let token = match env::var("INTEGRATION_JIRA_TOKEN") {
+    let token = match env::var("JIRA_PASSWORD") {
         Ok(token) if !token.trim().is_empty() => token,
         _ => {
-            eprintln!("⚠️  INTEGRATION_JIRA_TOKEN not set, skipping real V3 integration test");
+            eprintln!("⚠️  JIRA_PASSWORD not set, skipping real V3 integration test");
             return;
         }
     };
@@ -18,8 +18,12 @@ fn test_real_v3_search_with_auto_injection() {
     println!("🧪 Testing V3 API with real Jira Cloud instance...");
 
     // Create client for gouji.atlassian.net (should auto-detect V3)
-    let jira = Jira::new("https://gouji.atlassian.net", Credentials::Bearer(token))
-        .expect("Failed to create Jira client");
+    let username = env::var("JIRA_USERNAME").unwrap_or_else(|_| "rbeier57@gmail.com".to_string());
+    let jira = Jira::new(
+        "https://gouji.atlassian.net",
+        Credentials::Basic(username, token),
+    )
+    .expect("Failed to create Jira client");
 
     // Verify V3 API is being used
     assert_eq!(jira.get_search_api_version(), gouqi::SearchApiVersion::V3);
@@ -145,18 +149,22 @@ fn test_real_v3_search_with_auto_injection() {
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn test_real_v3_async_search() {
-    let token = match env::var("INTEGRATION_JIRA_TOKEN") {
+    let token = match env::var("JIRA_PASSWORD") {
         Ok(token) if !token.trim().is_empty() => token,
         _ => {
-            eprintln!("⚠️  INTEGRATION_JIRA_TOKEN not set, skipping async V3 test");
+            eprintln!("⚠️  JIRA_PASSWORD not set, skipping async V3 test");
             return;
         }
     };
 
     println!("🧪 Testing async V3 API...");
 
-    let jira = gouqi::r#async::Jira::new("https://gouji.atlassian.net", Credentials::Bearer(token))
-        .expect("Failed to create async Jira client");
+    let username = env::var("JIRA_USERNAME").unwrap_or_else(|_| "rbeier57@gmail.com".to_string());
+    let jira = gouqi::r#async::Jira::new(
+        "https://gouji.atlassian.net",
+        Credentials::Basic(username, token),
+    )
+    .expect("Failed to create async Jira client");
 
     // Test async search with auto-injection
     let results = jira

@@ -7,21 +7,25 @@ use std::env;
 #[test]
 fn test_real_jira_description_v3_adf() {
     // Skip if no token provided
-    let token = match env::var("INTEGRATION_JIRA_TOKEN") {
+    let token = match env::var("JIRA_PASSWORD") {
         Ok(token) if !token.trim().is_empty() => token,
         _ => {
-            eprintln!(
-                "⚠️  INTEGRATION_JIRA_TOKEN not set, skipping real description validation test"
-            );
+            eprintln!("⚠️  JIRA_PASSWORD not set, skipping real description validation test");
             return;
         }
     };
 
     println!("🧪 Testing Issue::description() with real JIRA Cloud V3 API...");
 
-    // Create client for gouji.atlassian.net (V3 API)
-    let jira = Jira::new("https://gouji.atlassian.net", Credentials::Bearer(token))
-        .expect("Failed to create Jira client");
+    // Get username from environment
+    let username = env::var("JIRA_USERNAME").unwrap_or_else(|_| "rbeier57@gmail.com".to_string());
+
+    // Create client for gouji.atlassian.net (V3 API) with Basic auth
+    let jira = Jira::new(
+        "https://gouji.atlassian.net",
+        Credentials::Basic(username, token),
+    )
+    .expect("Failed to create Jira client");
 
     // Verify V3 API is being used
     assert_eq!(jira.get_search_api_version(), gouqi::SearchApiVersion::V3);
@@ -130,18 +134,22 @@ fn test_real_jira_description_v3_adf() {
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn test_real_jira_description_async() {
-    let token = match env::var("INTEGRATION_JIRA_TOKEN") {
+    let token = match env::var("JIRA_PASSWORD") {
         Ok(token) if !token.trim().is_empty() => token,
         _ => {
-            eprintln!("⚠️  INTEGRATION_JIRA_TOKEN not set, skipping async description validation");
+            eprintln!("⚠️  JIRA_PASSWORD not set, skipping async description validation");
             return;
         }
     };
 
     println!("🧪 Testing async Issue::description() with real JIRA Cloud...");
 
-    let jira = gouqi::r#async::Jira::new("https://gouji.atlassian.net", Credentials::Bearer(token))
-        .expect("Failed to create async Jira client");
+    let username = env::var("JIRA_USERNAME").unwrap_or_else(|_| "rbeier57@gmail.com".to_string());
+    let jira = gouqi::r#async::Jira::new(
+        "https://gouji.atlassian.net",
+        Credentials::Basic(username, token),
+    )
+    .expect("Failed to create async Jira client");
 
     // Search for issues with descriptions
     let search_results = jira
@@ -177,18 +185,22 @@ async fn test_real_jira_description_async() {
 
 #[test]
 fn test_description_multiline_handling() {
-    let token = match env::var("INTEGRATION_JIRA_TOKEN") {
+    let token = match env::var("JIRA_PASSWORD") {
         Ok(token) if !token.trim().is_empty() => token,
         _ => {
-            eprintln!("⚠️  INTEGRATION_JIRA_TOKEN not set, skipping multiline test");
+            eprintln!("⚠️  JIRA_PASSWORD not set, skipping multiline test");
             return;
         }
     };
 
     println!("🧪 Testing multiline description handling...");
 
-    let jira = Jira::new("https://gouji.atlassian.net", Credentials::Bearer(token))
-        .expect("Failed to create Jira client");
+    let username = env::var("JIRA_USERNAME").unwrap_or_else(|_| "rbeier57@gmail.com".to_string());
+    let jira = Jira::new(
+        "https://gouji.atlassian.net",
+        Credentials::Basic(username, token),
+    )
+    .expect("Failed to create Jira client");
 
     // Search for issues and check for multiline descriptions
     let search_results = jira
@@ -231,18 +243,22 @@ fn test_description_multiline_handling() {
 
 #[test]
 fn test_description_with_formatting() {
-    let token = match env::var("INTEGRATION_JIRA_TOKEN") {
+    let token = match env::var("JIRA_PASSWORD") {
         Ok(token) if !token.trim().is_empty() => token,
         _ => {
-            eprintln!("⚠️  INTEGRATION_JIRA_TOKEN not set, skipping formatting test");
+            eprintln!("⚠️  JIRA_PASSWORD not set, skipping formatting test");
             return;
         }
     };
 
     println!("🧪 Testing description with formatting (bold, italic, etc.)...");
 
-    let jira = Jira::new("https://gouji.atlassian.net", Credentials::Bearer(token))
-        .expect("Failed to create Jira client");
+    let username = env::var("JIRA_USERNAME").unwrap_or_else(|_| "rbeier57@gmail.com".to_string());
+    let jira = Jira::new(
+        "https://gouji.atlassian.net",
+        Credentials::Basic(username, token),
+    )
+    .expect("Failed to create Jira client");
 
     let search_results = jira
         .search()
