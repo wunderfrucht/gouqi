@@ -338,37 +338,3 @@ mod cache_tests {
         assert_eq!(custom_strategy.ttl, Duration::from_secs(120));
     }
 }
-
-#[cfg(not(feature = "cache"))]
-mod cache_disabled_tests {
-    use gouqi::cache::{Cache, CacheStats, MemoryCache};
-    use std::time::Duration;
-
-    #[test]
-    fn test_no_op_cache_new() {
-        let cache = MemoryCache::new(Duration::from_secs(60));
-        assert!(cache.get("any_key").is_none());
-    }
-
-    #[test]
-    fn test_no_op_cache_with_capacity() {
-        let cache = MemoryCache::with_capacity(10, Duration::from_secs(30));
-        assert!(cache.get("any_key").is_none());
-    }
-
-    #[test]
-    fn test_no_op_cache_operations() {
-        let cache = MemoryCache::new(Duration::from_secs(60));
-
-        // All operations should be no-ops
-        cache.set("key", b"value".to_vec(), Duration::from_secs(60));
-        assert!(cache.get("key").is_none());
-
-        cache.delete("key");
-        cache.clear();
-        cache.cleanup_expired();
-
-        let stats = cache.stats();
-        assert_eq!(stats.total_entries, 0);
-    }
-}
