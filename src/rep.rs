@@ -126,9 +126,26 @@ impl Issue {
     }
 
     /// Description of the issue
+    ///
+    /// Supports both legacy string format (JIRA v2) and Atlassian Document Format (JIRA v3).
+    /// For ADF format, converts the structured document to plain text.
     pub fn description(&self) -> Option<String> {
-        self.string_field("description")
-            .and_then(|value| value.ok())
+        // First try to get as string (legacy v2 API format)
+        if let Some(Ok(desc)) = self.string_field("description") {
+            return Some(desc);
+        }
+
+        // If that fails, try to parse as ADF (v3 API format)
+        if let Some(Ok(adf)) = self.field::<AdfDocument>("description") {
+            let plain_text = adf.to_plain_text();
+            return if plain_text.is_empty() {
+                None
+            } else {
+                Some(plain_text)
+            };
+        }
+
+        None
     }
 
     fn extract_offset_date_time(&self, field: &str) -> Option<OffsetDateTime> {
@@ -391,6 +408,37 @@ impl AdfDocument {
             version: 1,
             doc_type: "doc".to_string(),
             content,
+        }
+    }
+
+    /// Extract plain text from an ADF document
+    /// Converts the structured document back to plain text, joining paragraphs with newlines
+    pub fn to_plain_text(&self) -> String {
+        self.content
+            .iter()
+            .filter_map(Self::extract_text_from_node)
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+
+    /// Recursively extract text from an ADF node
+    fn extract_text_from_node(node: &AdfNode) -> Option<String> {
+        if let Some(content) = &node.content {
+            let text: Vec<String> = content
+                .iter()
+                .filter_map(|item| match item {
+                    AdfContent::Text(text_node) => Some(text_node.text.clone()),
+                    AdfContent::Node(nested_node) => Self::extract_text_from_node(nested_node),
+                })
+                .collect();
+
+            if text.is_empty() {
+                None
+            } else {
+                Some(text.join(""))
+            }
+        } else {
+            None
         }
     }
 }

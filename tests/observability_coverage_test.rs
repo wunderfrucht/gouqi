@@ -1,7 +1,9 @@
 //! Additional tests to improve coverage for observability functionality
 
+#[cfg(any(feature = "metrics", feature = "cache"))]
 use gouqi::observability::{ObservabilityConfig, ObservabilitySystem};
 
+#[cfg(any(feature = "metrics", feature = "cache"))]
 #[test]
 fn test_observability_system_default() {
     let obs = ObservabilitySystem::default();
@@ -11,6 +13,7 @@ fn test_observability_system_default() {
     // Metrics enabled state depends on feature flags
 }
 
+#[cfg(any(feature = "metrics", feature = "cache"))]
 #[test]
 fn test_observability_system_debug() {
     let obs = ObservabilitySystem::new();
@@ -19,6 +22,7 @@ fn test_observability_system_debug() {
     assert!(debug_str.contains("ObservabilitySystem"));
 }
 
+#[cfg(any(feature = "metrics", feature = "cache"))]
 #[test]
 fn test_observability_cleanup() {
     let obs = ObservabilitySystem::new();
@@ -27,6 +31,7 @@ fn test_observability_cleanup() {
     obs.cleanup();
 }
 
+#[cfg(any(feature = "metrics", feature = "cache"))]
 #[test]
 fn test_observability_reset() {
     let obs = ObservabilitySystem::new();
@@ -35,6 +40,7 @@ fn test_observability_reset() {
     obs.reset();
 }
 
+#[cfg(any(feature = "metrics", feature = "cache"))]
 #[test]
 fn test_health_status_structure() {
     let obs = ObservabilitySystem::new();
@@ -50,6 +56,7 @@ fn test_health_status_structure() {
     assert_eq!(health.cache.total_entries, 0);
 }
 
+#[cfg(any(feature = "metrics", feature = "cache"))]
 #[test]
 fn test_metrics_health() {
     let obs = ObservabilitySystem::new();
@@ -63,6 +70,7 @@ fn test_metrics_health() {
     let _ = metrics.avg_response_time;
 }
 
+#[cfg(any(feature = "metrics", feature = "cache"))]
 #[test]
 fn test_cache_health() {
     let obs = ObservabilitySystem::new();
@@ -76,6 +84,7 @@ fn test_cache_health() {
     assert_eq!(cache.memory_usage, 0);
 }
 
+#[cfg(any(feature = "metrics", feature = "cache"))]
 #[test]
 fn test_memory_usage() {
     let obs = ObservabilitySystem::new();
@@ -88,6 +97,7 @@ fn test_memory_usage() {
     assert_eq!(memory.available_mb, 0);
 }
 
+#[cfg(any(feature = "metrics", feature = "cache"))]
 #[test]
 fn test_observability_report_structure() {
     let obs = ObservabilitySystem::new();
@@ -101,6 +111,7 @@ fn test_observability_report_structure() {
     assert!(!report.system_info.library_version.is_empty());
 }
 
+#[cfg(any(feature = "metrics", feature = "cache"))]
 #[test]
 fn test_observability_config_custom() {
     let config = ObservabilityConfig {
@@ -118,6 +129,7 @@ fn test_observability_config_custom() {
     assert_eq!(config.max_error_rate, 5.0);
 }
 
+#[cfg(any(feature = "metrics", feature = "cache"))]
 #[test]
 fn test_observability_config_serialization() {
     let config = ObservabilityConfig::default();
