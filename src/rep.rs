@@ -9,6 +9,56 @@ use tracing::error;
 use crate::{Jira, Result};
 // Forward reference - Component is defined later in this file but used by Project
 
+/// Custom serde module for JIRA datetime format
+/// JIRA requires dates in format: "2024-01-01T09:00:00.000+0000"
+/// This differs from standard ISO8601 in three ways:
+/// 1. No year sign prefix (2024 not +002024)
+/// 2. Milliseconds not nanoseconds (.000 not .000000000)
+/// 3. Timezone as +0000 not Z
+pub(crate) mod jira_datetime {
+    use serde::{Deserialize, Deserializer, Serializer};
+    use time::OffsetDateTime;
+
+    /// Serializes OffsetDateTime to JIRA's expected format
+    pub fn serialize<S>(dt: &Option<OffsetDateTime>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match dt {
+            Some(dt) => {
+                // Format as: "2024-01-01T09:00:00.000+0000"
+                let format = time::format_description::parse(
+                    "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3][offset_hour sign:mandatory][offset_minute]"
+                ).map_err(serde::ser::Error::custom)?;
+
+                let formatted = dt.format(&format).map_err(serde::ser::Error::custom)?;
+                serializer.serialize_str(&formatted)
+            }
+            None => serializer.serialize_none(),
+        }
+    }
+
+    /// Deserializes from JIRA datetime format or standard ISO8601
+    #[allow(dead_code)]
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<OffsetDateTime>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Option::<String>::deserialize(deserializer)?
+            .map(|s| {
+                // Try JIRA format first, then fall back to standard ISO8601
+                let format = time::format_description::parse(
+                    "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3][offset_hour sign:mandatory][offset_minute]"
+                ).map_err(|e| serde::de::Error::custom(format!("Format parse error: {}", e)))?;
+
+                OffsetDateTime::parse(&s, &format)
+                    .or_else(|_| OffsetDateTime::parse(&s, &time::format_description::well_known::Iso8601::DEFAULT))
+                    .map_err(|e| serde::de::Error::custom(format!("Date parse error: {}", e)))
+            })
+            .transpose()
+    }
+}
+
 /// Represents an general jira error response
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Errors {
@@ -929,10 +979,7 @@ pub struct Worklog {
 pub struct WorklogInput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        with = "time::serde::iso8601::option"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none", with = "jira_datetime")]
     pub started: Option<OffsetDateTime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time_spent_seconds: Option<u64>,
@@ -951,6 +998,26 @@ impl WorklogInput {
         }
     }
 
+    /// Create a new worklog with time spent in minutes
+    pub fn from_minutes(minutes: u64) -> Self {
+        Self::new(minutes * 60)
+    }
+
+    /// Create a new worklog with time spent in hours
+    pub fn from_hours(hours: u64) -> Self {
+        Self::new(hours * 3600)
+    }
+
+    /// Create a new worklog with time spent in days (8 hour workday)
+    pub fn from_days(days: u64) -> Self {
+        Self::new(days * 8 * 3600)
+    }
+
+    /// Create a new worklog with time spent in weeks (5 day workweek, 8 hour days)
+    pub fn from_weeks(weeks: u64) -> Self {
+        Self::new(weeks * 5 * 8 * 3600)
+    }
+
     /// Set a comment for the worklog
     pub fn with_comment(mut self, comment: impl Into<String>) -> Self {
         self.comment = Some(comment.into());
@@ -960,6 +1027,50 @@ impl WorklogInput {
     /// Set when the work was started
     pub fn with_started(mut self, started: OffsetDateTime) -> Self {
         self.started = Some(started);
+        self
+    }
+
+    /// Set started time to N hours ago from now
+    pub fn started_hours_ago(mut self, hours: i64) -> Self {
+        let started = OffsetDateTime::now_utc() - time::Duration::hours(hours);
+        self.started = Some(started);
+        self
+    }
+
+    /// Set started time to N minutes ago from now
+    pub fn started_minutes_ago(mut self, minutes: i64) -> Self {
+        let started = OffsetDateTime::now_utc() - time::Duration::minutes(minutes);
+        self.started = Some(started);
+        self
+    }
+
+    /// Set started time to N days ago from now
+    pub fn started_days_ago(mut self, days: i64) -> Self {
+        let started = OffsetDateTime::now_utc() - time::Duration::days(days);
+        self.started = Some(started);
+        self
+    }
+
+    /// Set started time to N weeks ago from now
+    pub fn started_weeks_ago(mut self, weeks: i64) -> Self {
+        let started = OffsetDateTime::now_utc() - time::Duration::weeks(weeks);
+        self.started = Some(started);
+        self
+    }
+
+    /// Set started time to a specific date and time
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use gouqi::WorklogInput;
+    /// use time::macros::datetime;
+    ///
+    /// let worklog = WorklogInput::from_hours(2)
+    ///     .started_at(datetime!(2024-01-15 09:00:00 UTC));
+    /// ```
+    pub fn started_at(mut self, datetime: OffsetDateTime) -> Self {
+        self.started = Some(datetime);
         self
     }
 

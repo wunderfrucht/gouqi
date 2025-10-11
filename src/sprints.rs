@@ -50,14 +50,14 @@ pub struct UpdateSprint {
         default,
         skip_serializing_if = "Option::is_none",
         rename = "startDate",
-        with = "time::serde::iso8601::option"
+        with = "crate::rep::jira_datetime"
     )]
     pub start_date: Option<OffsetDateTime>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
         rename = "endDate",
-        with = "time::serde::iso8601::option"
+        with = "crate::rep::jira_datetime"
     )]
     pub end_date: Option<OffsetDateTime>,
     #[serde(skip_serializing_if = "Option::is_none")]

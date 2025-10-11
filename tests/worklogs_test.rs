@@ -247,6 +247,220 @@ fn test_worklog_input_builder() {
 }
 
 #[test]
+fn test_worklog_input_started_serialization() {
+    use time::OffsetDateTime;
+
+    // Test UTC timezone - should produce format: "2024-01-01T09:00:00.000+0000"
+    let started = OffsetDateTime::from_unix_timestamp(1704096000).unwrap(); // 2024-01-01 08:00:00 UTC
+    let worklog = WorklogInput::new(7200).with_started(started);
+
+    let serialized = serde_json::to_string(&worklog).unwrap();
+    println!("Serialized: {}", serialized);
+
+    // Verify the format matches JIRA expectations
+    assert!(serialized.contains("\"started\":\"2024-01-01T08:00:00.000+0000\""));
+    assert!(!serialized.contains("+002024")); // Should not have year prefix
+    assert!(!serialized.contains("Z\"")); // Should not use Z notation
+
+    // Verify it includes the other fields
+    assert!(serialized.contains("\"timeSpentSeconds\":7200"));
+}
+
+#[test]
+fn test_worklog_input_started_with_different_timezone() {
+    use time::{OffsetDateTime, UtcOffset};
+
+    // Test with EST timezone (-05:00)
+    let utc_time = OffsetDateTime::from_unix_timestamp(1704096000).unwrap();
+    let est_offset = UtcOffset::from_hms(-5, 0, 0).unwrap();
+    let est_time = utc_time.to_offset(est_offset);
+
+    let worklog = WorklogInput::new(3600).with_started(est_time);
+    let serialized = serde_json::to_string(&worklog).unwrap();
+    println!("EST Serialized: {}", serialized);
+
+    // Should include -0500 offset
+    assert!(serialized.contains("-0500"));
+    assert!(serialized.contains("2024-01-01T03:00:00.000-0500"));
+}
+
+#[test]
+fn test_worklog_input_started_with_positive_timezone() {
+    use time::{OffsetDateTime, UtcOffset};
+
+    // Test with +09:30 timezone (Australian Central)
+    let utc_time = OffsetDateTime::from_unix_timestamp(1704096000).unwrap();
+    let act_offset = UtcOffset::from_hms(9, 30, 0).unwrap();
+    let act_time = utc_time.to_offset(act_offset);
+
+    let worklog = WorklogInput::new(3600).with_started(act_time);
+    let serialized = serde_json::to_string(&worklog).unwrap();
+    println!("ACT Serialized: {}", serialized);
+
+    // Should include +0930 offset
+    assert!(serialized.contains("+0930"));
+    assert!(serialized.contains("2024-01-01T17:30:00.000+0930"));
+}
+
+#[test]
+fn test_worklog_input_started_with_milliseconds() {
+    use time::OffsetDateTime;
+
+    // Test that milliseconds are properly formatted (3 digits, not 9)
+    let started = OffsetDateTime::from_unix_timestamp_nanos(1_704_096_000_123_456_789).unwrap();
+    let worklog = WorklogInput::new(7200).with_started(started);
+
+    let serialized = serde_json::to_string(&worklog).unwrap();
+    println!("With milliseconds: {}", serialized);
+
+    // Should have exactly 3 digits for milliseconds (.123)
+    assert!(serialized.contains(".123+0000"));
+    // Should NOT have 9 digits
+    assert!(!serialized.contains(".123456789"));
+}
+
+#[test]
+fn test_worklog_input_without_started() {
+    // Test that omitting started field works correctly
+    let worklog = WorklogInput::new(3600).with_comment("No started time");
+    let serialized = serde_json::to_string(&worklog).unwrap();
+    println!("Without started: {}", serialized);
+
+    // Should not include started field at all
+    assert!(!serialized.contains("\"started\""));
+    assert!(serialized.contains("\"timeSpentSeconds\":3600"));
+    assert!(serialized.contains("\"comment\":\"No started time\""));
+}
+
+#[test]
+fn test_worklog_from_minutes() {
+    let worklog = WorklogInput::from_minutes(30);
+    assert_eq!(worklog.time_spent_seconds, Some(1800)); // 30 * 60
+}
+
+#[test]
+fn test_worklog_from_hours() {
+    let worklog = WorklogInput::from_hours(2);
+    assert_eq!(worklog.time_spent_seconds, Some(7200)); // 2 * 3600
+}
+
+#[test]
+fn test_worklog_from_days() {
+    let worklog = WorklogInput::from_days(1);
+    assert_eq!(worklog.time_spent_seconds, Some(28800)); // 1 * 8 * 3600
+}
+
+#[test]
+fn test_worklog_from_weeks() {
+    let worklog = WorklogInput::from_weeks(1);
+    assert_eq!(worklog.time_spent_seconds, Some(144000)); // 1 * 5 * 8 * 3600
+}
+
+#[test]
+fn test_worklog_started_hours_ago() {
+    use time::OffsetDateTime;
+
+    let before = OffsetDateTime::now_utc();
+    let worklog = WorklogInput::from_hours(2).started_hours_ago(3);
+    let after = OffsetDateTime::now_utc();
+
+    assert!(worklog.started.is_some());
+    let started = worklog.started.unwrap();
+
+    // Started time should be approximately 3 hours ago
+    let three_hours_before = before - time::Duration::hours(3);
+    let three_hours_after = after - time::Duration::hours(3);
+
+    // Allow 1 second tolerance for test execution time
+    assert!(started >= three_hours_before - time::Duration::seconds(1));
+    assert!(started <= three_hours_after + time::Duration::seconds(1));
+}
+
+#[test]
+fn test_worklog_started_days_ago() {
+    use time::OffsetDateTime;
+
+    let before = OffsetDateTime::now_utc();
+    let worklog = WorklogInput::from_hours(4).started_days_ago(2);
+    let after = OffsetDateTime::now_utc();
+
+    assert!(worklog.started.is_some());
+    let started = worklog.started.unwrap();
+
+    // Started time should be approximately 2 days ago
+    let two_days_before = before - time::Duration::days(2);
+    let two_days_after = after - time::Duration::days(2);
+
+    // Allow 1 second tolerance
+    assert!(started >= two_days_before - time::Duration::seconds(1));
+    assert!(started <= two_days_after + time::Duration::seconds(1));
+}
+
+#[test]
+fn test_worklog_started_at() {
+    use time::macros::datetime;
+
+    let specific_time = datetime!(2024-01-15 14:30:00 UTC);
+    let worklog = WorklogInput::from_hours(3).started_at(specific_time);
+
+    assert_eq!(worklog.started, Some(specific_time));
+}
+
+#[test]
+fn test_worklog_builder_chain() {
+    use time::macros::datetime;
+
+    // Test chaining multiple methods
+    let worklog = WorklogInput::from_hours(2)
+        .with_comment("Fixed critical bug")
+        .started_at(datetime!(2024-01-15 09:00:00 UTC));
+
+    assert_eq!(worklog.time_spent_seconds, Some(7200));
+    assert_eq!(worklog.comment, Some("Fixed critical bug".to_string()));
+    assert_eq!(worklog.started, Some(datetime!(2024-01-15 09:00:00 UTC)));
+}
+
+#[test]
+fn test_worklog_started_minutes_ago() {
+    use time::OffsetDateTime;
+
+    let before = OffsetDateTime::now_utc();
+    let worklog = WorklogInput::from_minutes(45).started_minutes_ago(30);
+    let after = OffsetDateTime::now_utc();
+
+    assert!(worklog.started.is_some());
+    let started = worklog.started.unwrap();
+
+    // Started time should be approximately 30 minutes ago
+    let thirty_min_before = before - time::Duration::minutes(30);
+    let thirty_min_after = after - time::Duration::minutes(30);
+
+    // Allow 1 second tolerance
+    assert!(started >= thirty_min_before - time::Duration::seconds(1));
+    assert!(started <= thirty_min_after + time::Duration::seconds(1));
+}
+
+#[test]
+fn test_worklog_started_weeks_ago() {
+    use time::OffsetDateTime;
+
+    let before = OffsetDateTime::now_utc();
+    let worklog = WorklogInput::from_days(3).started_weeks_ago(1);
+    let after = OffsetDateTime::now_utc();
+
+    assert!(worklog.started.is_some());
+    let started = worklog.started.unwrap();
+
+    // Started time should be approximately 1 week ago
+    let one_week_before = before - time::Duration::weeks(1);
+    let one_week_after = after - time::Duration::weeks(1);
+
+    // Allow 1 second tolerance
+    assert!(started >= one_week_before - time::Duration::seconds(1));
+    assert!(started <= one_week_after + time::Duration::seconds(1));
+}
+
+#[test]
 fn test_add_worklog_with_options_new_estimate() {
     let mut server = mockito::Server::new();
 
