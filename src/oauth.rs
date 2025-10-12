@@ -35,7 +35,7 @@ use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use base64::{Engine as _, engine::general_purpose};
-use rand::{Rng, distributions::Alphanumeric, thread_rng};
+use rand::{Rng, distr::Alphanumeric, rng};
 use rsa::{
     RsaPrivateKey,
     pkcs1v15::SigningKey,
@@ -124,7 +124,7 @@ pub fn generate_oauth_header(
 ///
 /// A 32-character random alphanumeric string
 fn generate_nonce() -> String {
-    thread_rng()
+    rng()
         .sample_iter(&Alphanumeric)
         .take(32)
         .map(char::from)

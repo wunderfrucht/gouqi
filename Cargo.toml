@@ -50,7 +50,7 @@ once_cell = { version = "1.19", optional = true }
 rsa = { version = "0.9", optional = true }
 sha1 = { version = "0.10", optional = true }
 base64 = { version = "0.22", optional = true }
-rand = { version = "0.8", optional = true }
+rand = { version = "0.9", optional = true }
 
 [features]
 default = []
