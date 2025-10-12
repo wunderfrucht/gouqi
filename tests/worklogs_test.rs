@@ -103,7 +103,10 @@ fn test_get_worklog_by_id() {
     let worklog = result.unwrap();
     assert_eq!(worklog.id, "10001");
     assert_eq!(worklog.time_spent_seconds, Some(12000));
-    assert_eq!(worklog.comment(), Some("Worked on feature".to_string()));
+    assert_eq!(
+        worklog.comment.as_ref().map(|c| c.as_ref()),
+        Some("Worked on feature")
+    );
 }
 
 #[test]

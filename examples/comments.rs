@@ -35,7 +35,7 @@ fn main() {
                             "{:?}: {:?}: {:?}",
                             comment.author.as_ref().map(|a| &a.display_name),
                             comment.created,
-                            comment.body().unwrap_or_default(),
+                            &*comment.body, // Deref to &str
                         );
                     }
                 }

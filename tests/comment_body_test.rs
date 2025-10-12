@@ -18,10 +18,7 @@ fn test_comment_body_v2_string_format() {
     let comment: Comment = serde_json::from_str(&comment_json.to_string()).unwrap();
 
     assert_eq!(comment.id, Some("10000".to_string()));
-    assert_eq!(
-        comment.body(),
-        Some("This is a plain text comment from v2 API".to_string())
-    );
+    assert_eq!(&*comment.body, "This is a plain text comment from v2 API");
 }
 
 #[test]
@@ -40,10 +37,7 @@ fn test_comment_body_adf_format_simple() {
     let comment: Comment = serde_json::from_str(&comment_json.to_string()).unwrap();
 
     assert_eq!(comment.id, Some("10001".to_string()));
-    assert_eq!(
-        comment.body(),
-        Some("This is an ADF comment from v3 API".to_string())
-    );
+    assert_eq!(&*comment.body, "This is an ADF comment from v3 API");
 }
 
 #[test]
@@ -62,7 +56,7 @@ fn test_comment_body_adf_format_multiline() {
 
     let comment: Comment = serde_json::from_str(&comment_json.to_string()).unwrap();
 
-    let body = comment.body().unwrap();
+    let body = &*comment.body;
     assert_eq!(body, text);
 
     // Verify it has multiple lines
@@ -84,8 +78,8 @@ fn test_comment_body_adf_format_empty() {
 
     let comment: Comment = serde_json::from_str(&comment_json.to_string()).unwrap();
 
-    // Empty ADF should return None (no meaningful content)
-    assert!(comment.body().is_none());
+    // Empty ADF should result in an empty string
+    assert_eq!(&*comment.body, "");
 }
 
 #[test]
@@ -134,10 +128,7 @@ fn test_comment_body_adf_with_inline_formatting() {
     let comment: Comment = serde_json::from_str(&comment_json.to_string()).unwrap();
 
     // Should extract plain text without formatting marks
-    assert_eq!(
-        comment.body(),
-        Some("This is bold and italic text".to_string())
-    );
+    assert_eq!(&*comment.body, "This is bold and italic text");
 }
 
 #[test]
@@ -181,7 +172,7 @@ fn test_comment_body_adf_with_nested_content() {
 
     let comment: Comment = serde_json::from_str(&comment_json.to_string()).unwrap();
 
-    let body = comment.body().unwrap();
+    let body = &*comment.body;
     assert_eq!(body, "Outer text with nested\nSecond paragraph");
 }
 
@@ -198,10 +189,7 @@ fn test_comment_body_special_characters() {
 
     let comment: Comment = serde_json::from_str(&comment_json.to_string()).unwrap();
 
-    assert_eq!(
-        comment.body(),
-        Some("Comment with special chars: <>&\"'".to_string())
-    );
+    assert_eq!(&*comment.body, "Comment with special chars: <>&\"'");
 }
 
 #[test]
@@ -220,7 +208,7 @@ fn test_comment_body_unicode() {
 
     let comment: Comment = serde_json::from_str(&comment_json.to_string()).unwrap();
 
-    assert_eq!(comment.body(), Some(text.to_string()));
+    assert_eq!(&*comment.body, text);
 }
 
 #[test]
@@ -239,7 +227,7 @@ fn test_comment_body_very_long_text() {
 
     let comment: Comment = serde_json::from_str(&comment_json.to_string()).unwrap();
 
-    let body = comment.body().unwrap();
+    let body = &*comment.body;
     assert_eq!(body.len(), 10000);
     assert_eq!(body, long_text);
 }
@@ -264,14 +252,14 @@ fn test_comment_body_many_paragraphs() {
 
     let comment: Comment = serde_json::from_str(&comment_json.to_string()).unwrap();
 
-    let body = comment.body().unwrap();
+    let body = &*comment.body;
     assert_eq!(body, text);
     assert_eq!(body.lines().count(), 50);
 }
 
 #[test]
 fn test_comment_body_raw_field_access() {
-    // Test direct access to body_raw field for advanced use cases
+    // Test direct access to body field and raw() method for advanced use cases
     let comment_json = json!({
         "id": "10010",
         "self": "http://jira.example.com/rest/api/2/comment/10010",
@@ -282,12 +270,12 @@ fn test_comment_body_raw_field_access() {
 
     let comment: Comment = serde_json::from_str(&comment_json.to_string()).unwrap();
 
-    // Verify body_raw contains the raw value
-    assert!(comment.body_raw.is_string());
-    assert_eq!(comment.body_raw.as_str(), Some("Direct access test"));
+    // Test direct string access via Deref
+    assert_eq!(&*comment.body, "Direct access test");
 
-    // And that body() extracts it correctly
-    assert_eq!(comment.body(), Some("Direct access test".to_string()));
+    // Test raw() method for accessing JSON value
+    assert!(comment.body.raw().is_string());
+    assert_eq!(comment.body.raw().as_str(), Some("Direct access test"));
 }
 
 #[test]
@@ -310,7 +298,7 @@ fn test_comment_body_adf_round_trip() {
     let comment: Comment = serde_json::from_str(&comment_json.to_string()).unwrap();
 
     // Should extract the same text
-    assert_eq!(comment.body(), Some(original_text.to_string()));
+    assert_eq!(&*comment.body, original_text);
 }
 
 #[test]
@@ -329,7 +317,7 @@ fn test_comment_with_optional_fields() {
     assert!(comment.created.is_none());
     assert!(comment.updated.is_none());
     assert!(comment.visibility.is_none());
-    assert_eq!(comment.body(), Some("Minimal comment".to_string()));
+    assert_eq!(&*comment.body, "Minimal comment");
 }
 
 #[test]
@@ -347,7 +335,7 @@ fn test_comment_body_whitespace_handling() {
 
     // Should preserve whitespace as-is in v2
     assert_eq!(
-        comment.body(),
-        Some("  Leading and trailing spaces  \n\nWith blank lines\n".to_string())
+        &*comment.body,
+        "  Leading and trailing spaces  \n\nWith blank lines\n"
     );
 }

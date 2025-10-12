@@ -67,7 +67,7 @@ fn test_real_jira_worklog_comment_v3_adf() {
                     tested_worklog_count += 1;
 
                     // Test worklog comment extraction
-                    match worklog.comment() {
+                    match &worklog.comment {
                         Some(comment) => {
                             println!("   ✅ Worklog comment extracted successfully");
                             println!("   Length: {} characters", comment.len());
@@ -76,7 +76,7 @@ fn test_real_jira_worklog_comment_v3_adf() {
                             let preview = if comment.len() > 80 {
                                 format!("{}...", &comment[..80])
                             } else {
-                                comment.clone()
+                                comment.to_string()
                             };
                             println!("   Preview: {}", preview.replace('\n', " "));
 
@@ -144,7 +144,7 @@ fn test_real_jira_worklog_comment_v3_adf() {
                         println!("   Author: {}", author.display_name);
                     }
 
-                    if let Some(comment) = worklog.comment() {
+                    if let Some(comment) = &worklog.comment {
                         println!("   Comment length: {} characters", comment.len());
 
                         // Validate it's plain text, not JSON/ADF structure
@@ -210,7 +210,7 @@ async fn test_real_jira_worklog_comment_async() {
             println!("   Worklogs: {}", worklogs_response.total);
 
             for worklog in worklogs_response.worklogs.iter().take(2) {
-                if let Some(comment) = worklog.comment() {
+                if let Some(comment) = &worklog.comment {
                     println!("   ✅ Worklog comment: {} chars", comment.len());
 
                     // Validate it's plain text

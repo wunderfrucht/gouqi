@@ -329,34 +329,8 @@ pub struct Comment {
     pub created: Option<OffsetDateTime>,
     #[serde(default, with = "time::serde::iso8601::option")]
     pub updated: Option<OffsetDateTime>,
-    #[serde(rename = "body")]
-    pub body_raw: serde_json::Value,
+    pub body: TextContent,
     pub visibility: Option<Visibility>,
-}
-
-impl Comment {
-    /// Extract body text from a comment
-    ///
-    /// Supports both legacy string format (JIRA v2) and Atlassian Document Format (JIRA v3).
-    /// For ADF format, converts the structured document to plain text.
-    pub fn body(&self) -> Option<String> {
-        // First try to get as string (legacy v2 API format)
-        if let Ok(body_text) = serde_json::from_value::<String>(self.body_raw.clone()) {
-            return Some(body_text);
-        }
-
-        // If that fails, try to parse as ADF (v3 API format)
-        if let Ok(adf) = serde_json::from_value::<AdfDocument>(self.body_raw.clone()) {
-            let plain_text = adf.to_plain_text();
-            return if plain_text.is_empty() {
-                None
-            } else {
-                Some(plain_text)
-            };
-        }
-
-        None
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -364,6 +338,146 @@ pub struct Visibility {
     #[serde(rename = "type")]
     pub visibility_type: String,
     pub value: String,
+}
+
+/// Text content that supports both plain text (JIRA v2) and ADF format (JIRA v3)
+///
+/// This type provides backward compatibility by accepting both String and ADF JSON
+/// during deserialization, while providing string-like access patterns through Deref.
+///
+/// # Examples
+///
+/// ```
+/// # use gouqi::TextContent;
+/// // Acts like a string reference
+/// let text = TextContent::from("Hello");
+/// assert_eq!(text.len(), 5);
+/// assert!(text.contains("Hello"));
+/// ```
+#[derive(Clone, Debug)]
+pub struct TextContent {
+    /// Raw JSON value (either String or ADF document)
+    raw: serde_json::Value,
+    /// Cached extracted text for efficient access
+    cached: String,
+}
+
+impl TextContent {
+    /// Create TextContent from a plain string
+    pub fn from_string(s: impl Into<String>) -> Self {
+        let text = s.into();
+        Self {
+            raw: serde_json::Value::String(text.clone()),
+            cached: text,
+        }
+    }
+
+    /// Get the raw JSON value
+    pub fn raw(&self) -> &serde_json::Value {
+        &self.raw
+    }
+
+    /// Extract plain text from a JSON value (String or ADF)
+    fn extract_text(value: &serde_json::Value) -> String {
+        // First try to get as string (legacy v2 API format)
+        if let Ok(text) = serde_json::from_value::<String>(value.clone()) {
+            return text;
+        }
+
+        // If that fails, try to parse as ADF (v3 API format)
+        if let Ok(adf) = serde_json::from_value::<AdfDocument>(value.clone()) {
+            return adf.to_plain_text();
+        }
+
+        // Fallback: empty string
+        String::new()
+    }
+}
+
+impl std::ops::Deref for TextContent {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        &self.cached
+    }
+}
+
+impl std::fmt::Display for TextContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.cached)
+    }
+}
+
+impl AsRef<str> for TextContent {
+    fn as_ref(&self) -> &str {
+        &self.cached
+    }
+}
+
+impl std::borrow::Borrow<str> for TextContent {
+    fn borrow(&self) -> &str {
+        &self.cached
+    }
+}
+
+impl PartialEq<str> for TextContent {
+    fn eq(&self, other: &str) -> bool {
+        self.cached == other
+    }
+}
+
+impl PartialEq<&str> for TextContent {
+    fn eq(&self, other: &&str) -> bool {
+        self.cached == *other
+    }
+}
+
+impl PartialEq<String> for TextContent {
+    fn eq(&self, other: &String) -> bool {
+        &self.cached == other
+    }
+}
+
+impl PartialEq for TextContent {
+    fn eq(&self, other: &Self) -> bool {
+        self.cached == other.cached
+    }
+}
+
+impl Eq for TextContent {}
+
+impl From<String> for TextContent {
+    fn from(s: String) -> Self {
+        Self::from_string(s)
+    }
+}
+
+impl From<&str> for TextContent {
+    fn from(s: &str) -> Self {
+        Self::from_string(s)
+    }
+}
+
+// Custom serialization: always serialize the raw value
+impl Serialize for TextContent {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.raw.serialize(serializer)
+    }
+}
+
+// Custom deserialization: accept both String and ADF, eagerly extract text
+impl<'de> Deserialize<'de> for TextContent {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = serde_json::Value::deserialize(deserializer)?;
+        let cached = Self::extract_text(&raw);
+        Ok(Self { raw, cached })
+    }
 }
 
 /// Atlassian Document Format (ADF) structures for V3 API comments
@@ -1078,8 +1192,8 @@ pub struct Worklog {
     pub author: Option<User>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub update_author: Option<User>,
-    #[serde(rename = "comment", skip_serializing_if = "Option::is_none")]
-    pub comment_raw: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<TextContent>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -1104,33 +1218,6 @@ pub struct Worklog {
     pub time_spent_seconds: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub issue_id: Option<String>,
-}
-
-impl Worklog {
-    /// Extract comment text from a worklog
-    ///
-    /// Supports both legacy string format (JIRA v2) and Atlassian Document Format (JIRA v3).
-    /// For ADF format, converts the structured document to plain text.
-    pub fn comment(&self) -> Option<String> {
-        let comment_value = self.comment_raw.as_ref()?;
-
-        // First try to get as string (legacy v2 API format)
-        if let Ok(comment_text) = serde_json::from_value::<String>(comment_value.clone()) {
-            return Some(comment_text);
-        }
-
-        // If that fails, try to parse as ADF (v3 API format)
-        if let Ok(adf) = serde_json::from_value::<AdfDocument>(comment_value.clone()) {
-            let plain_text = adf.to_plain_text();
-            return if plain_text.is_empty() {
-                None
-            } else {
-                Some(plain_text)
-            };
-        }
-
-        None
-    }
 }
 
 /// Request to create or update a worklog

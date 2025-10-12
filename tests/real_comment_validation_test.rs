@@ -48,7 +48,6 @@ fn test_real_jira_comment_body_v3_adf() {
 
     let mut tested_count = 0;
     let mut adf_count = 0;
-    let mut string_count = 0;
     let mut empty_count = 0;
 
     for issue in &search_results.issues {
@@ -65,44 +64,38 @@ fn test_real_jira_comment_body_v3_adf() {
 
             for comment in &comments.comments {
                 // Test comment body extraction
-                match comment.body() {
-                    Some(body) => {
-                        println!("   ✅ Comment body extracted successfully");
-                        println!("   Length: {} characters", body.len());
+                let body = &*comment.body;
 
-                        // Show first 100 chars
-                        let preview = if body.len() > 100 {
-                            format!("{}...", &body[..100])
-                        } else {
-                            body.clone()
-                        };
-                        println!("   Preview: {}", preview.replace('\n', " "));
+                println!("   ✅ Comment body extracted successfully");
+                println!("   Length: {} characters", body.len());
 
-                        // Check if it looks like it came from ADF (has actual text content)
-                        if !body.trim().is_empty() {
-                            adf_count += 1;
+                // Show first 100 chars
+                let preview = if body.len() > 100 {
+                    format!("{}...", &body[..100])
+                } else {
+                    body.to_string()
+                };
+                println!("   Preview: {}", preview.replace('\n', " "));
 
-                            // Validate the body is properly extracted
-                            assert!(
-                                !body.contains('{') || body.matches('{').count() < 3,
-                                "Body should not contain excessive JSON characters"
-                            );
-                            assert!(
-                                !body.contains("\"type\":"),
-                                "Body should not contain ADF structure"
-                            );
-                            assert!(
-                                !body.contains("\"content\":"),
-                                "Body should not contain ADF structure"
-                            );
-                        } else {
-                            string_count += 1;
-                        }
-                    }
-                    None => {
-                        empty_count += 1;
-                        println!("   ℹ️  No body (returned None)");
-                    }
+                // Check if it looks like it came from ADF (has actual text content)
+                if !body.trim().is_empty() {
+                    adf_count += 1;
+
+                    // Validate the body is properly extracted
+                    assert!(
+                        !body.contains('{') || body.matches('{').count() < 3,
+                        "Body should not contain excessive JSON characters"
+                    );
+                    assert!(
+                        !body.contains("\"type\":"),
+                        "Body should not contain ADF structure"
+                    );
+                    assert!(
+                        !body.contains("\"content\":"),
+                        "Body should not contain ADF structure"
+                    );
+                } else {
+                    empty_count += 1;
                 }
             }
         } else {
@@ -113,8 +106,7 @@ fn test_real_jira_comment_body_v3_adf() {
     println!("\n📊 Validation Summary:");
     println!("   Total issues tested: {}", tested_count);
     println!("   Comments with ADF bodies: {}", adf_count);
-    println!("   Comments with string bodies: {}", string_count);
-    println!("   Comments with no body: {}", empty_count);
+    println!("   Comments with empty body: {}", empty_count);
 
     // Test 2: Get a specific issue and validate comments
     if !search_results.issues.is_empty() {
@@ -135,19 +127,16 @@ fn test_real_jira_comment_body_v3_adf() {
                     println!("   Author: {}", author.display_name);
                 }
 
-                if let Some(body) = comment.body() {
-                    println!("   Body length: {} characters", body.len());
+                let body = &*comment.body;
+                println!("   Body length: {} characters", body.len());
 
-                    // Validate it's plain text, not JSON/ADF structure
-                    assert!(
-                        !body.contains('{') || body.matches('{').count() < 5,
-                        "Body should be plain text, not JSON structure"
-                    );
+                // Validate it's plain text, not JSON/ADF structure
+                assert!(
+                    !body.contains('{') || body.matches('{').count() < 5,
+                    "Body should be plain text, not JSON structure"
+                );
 
-                    println!("   ✅ Body extracted correctly");
-                } else {
-                    println!("   ℹ️  No body content");
-                }
+                println!("   ✅ Body extracted correctly");
             }
         }
     }
@@ -195,15 +184,14 @@ async fn test_real_jira_comment_body_async() {
 
         if let Some(comments) = issue.comments() {
             for comment in &comments.comments {
-                if let Some(body) = comment.body() {
-                    println!("   ✅ Comment body: {} chars", body.len());
+                let body = &*comment.body;
+                println!("   ✅ Comment body: {} chars", body.len());
 
-                    // Validate it's plain text
-                    assert!(
-                        !body.contains("\"type\":\"doc\""),
-                        "Body should not contain ADF JSON structure"
-                    );
-                }
+                // Validate it's plain text
+                assert!(
+                    !body.contains("\"type\":\"doc\""),
+                    "Body should not contain ADF JSON structure"
+                );
             }
         }
     }
@@ -247,17 +235,16 @@ fn test_comment_body_multiline_handling() {
     for issue in &search_results.issues {
         if let Some(comments) = issue.comments() {
             for comment in &comments.comments {
-                if let Some(body) = comment.body() {
-                    if body.contains('\n') {
-                        multiline_count += 1;
-                        println!("✅ Issue {} comment has multiline body", issue.key);
+                let body = &*comment.body;
+                if body.contains('\n') {
+                    multiline_count += 1;
+                    println!("✅ Issue {} comment has multiline body", issue.key);
 
-                        let lines: Vec<&str> = body.lines().collect();
-                        println!("   Number of lines: {}", lines.len());
+                    let lines: Vec<&str> = body.lines().collect();
+                    println!("   Number of lines: {}", lines.len());
 
-                        // Validate that newlines are preserved from ADF paragraphs
-                        assert!(lines.len() > 1, "Multiline body should have multiple lines");
-                    }
+                    // Validate that newlines are preserved from ADF paragraphs
+                    assert!(lines.len() > 1, "Multiline body should have multiple lines");
                 }
             }
         }

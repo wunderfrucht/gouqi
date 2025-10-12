@@ -216,7 +216,7 @@ mod async_issues_tests {
             comment.self_link,
             "http://jira.example.com/rest/api/2/comment/10000"
         );
-        assert_eq!(comment.body(), Some("Test comment".to_string()));
+        assert_eq!(&*comment.body, "Test comment");
     }
 
     #[test]

@@ -20,8 +20,8 @@ fn test_worklog_comment_v2_string_format() {
 
     assert_eq!(worklog.id, "10000");
     assert_eq!(
-        worklog.comment(),
-        Some("Fixed the bug in production".to_string())
+        worklog.comment.as_ref().map(|c| c.as_ref()),
+        Some("Fixed the bug in production")
     );
 }
 
@@ -43,8 +43,8 @@ fn test_worklog_comment_adf_format_simple() {
 
     assert_eq!(worklog.id, "10001");
     assert_eq!(
-        worklog.comment(),
-        Some("Worked on feature implementation".to_string())
+        worklog.comment.as_ref().map(|c| c.as_ref()),
+        Some("Worked on feature implementation")
     );
 }
 
@@ -65,8 +65,8 @@ fn test_worklog_comment_adf_format_multiline() {
 
     let worklog: Worklog = serde_json::from_str(&worklog_json.to_string()).unwrap();
 
-    let comment = worklog.comment().unwrap();
-    assert_eq!(comment, text);
+    let comment = worklog.comment.as_ref().unwrap();
+    assert_eq!(&**comment, text);
 
     // Verify it has multiple lines
     assert_eq!(comment.lines().count(), 3);
@@ -88,8 +88,9 @@ fn test_worklog_comment_adf_format_empty() {
 
     let worklog: Worklog = serde_json::from_str(&worklog_json.to_string()).unwrap();
 
-    // Empty ADF should return None (no meaningful content)
-    assert!(worklog.comment().is_none());
+    // Empty ADF should result in Some("") since the field exists
+    assert!(worklog.comment.is_some());
+    assert_eq!(worklog.comment.as_ref().unwrap().as_ref(), "");
 }
 
 #[test]
@@ -106,7 +107,7 @@ fn test_worklog_comment_no_comment_field() {
     let worklog: Worklog = serde_json::from_str(&worklog_json.to_string()).unwrap();
 
     assert_eq!(worklog.id, "10004");
-    assert!(worklog.comment().is_none());
+    assert!(worklog.comment.is_none());
 }
 
 #[test]
@@ -148,8 +149,8 @@ fn test_worklog_comment_adf_with_inline_formatting() {
 
     // Should extract plain text without formatting marks
     assert_eq!(
-        worklog.comment(),
-        Some("Worked on critical bug fix".to_string())
+        worklog.comment.as_ref().map(|c| c.as_ref()),
+        Some("Worked on critical bug fix")
     );
 }
 
@@ -190,9 +191,9 @@ fn test_worklog_comment_adf_with_nested_content() {
 
     let worklog: Worklog = serde_json::from_str(&worklog_json.to_string()).unwrap();
 
-    let comment = worklog.comment().unwrap();
+    let comment = worklog.comment.as_ref().unwrap();
     assert_eq!(
-        comment,
+        &**comment,
         "Fixed performance issues\nOptimized database queries"
     );
 }
@@ -212,8 +213,8 @@ fn test_worklog_comment_special_characters() {
     let worklog: Worklog = serde_json::from_str(&worklog_json.to_string()).unwrap();
 
     assert_eq!(
-        worklog.comment(),
-        Some("Fixed issue with <>&\"' characters".to_string())
+        worklog.comment.as_ref().map(|c| c.as_ref()),
+        Some("Fixed issue with <>&\"' characters")
     );
 }
 
@@ -234,7 +235,7 @@ fn test_worklog_comment_unicode() {
 
     let worklog: Worklog = serde_json::from_str(&worklog_json.to_string()).unwrap();
 
-    assert_eq!(worklog.comment(), Some(text.to_string()));
+    assert_eq!(worklog.comment.as_ref().map(|c| c.as_ref()), Some(text));
 }
 
 #[test]
@@ -254,9 +255,9 @@ fn test_worklog_comment_very_long_text() {
 
     let worklog: Worklog = serde_json::from_str(&worklog_json.to_string()).unwrap();
 
-    let comment = worklog.comment().unwrap();
+    let comment = worklog.comment.as_ref().unwrap();
     assert_eq!(comment.len(), long_text.len());
-    assert_eq!(comment, long_text);
+    assert_eq!(&**comment, long_text);
 }
 
 #[test]
@@ -280,14 +281,14 @@ fn test_worklog_comment_many_paragraphs() {
 
     let worklog: Worklog = serde_json::from_str(&worklog_json.to_string()).unwrap();
 
-    let comment = worklog.comment().unwrap();
-    assert_eq!(comment, text);
+    let comment = worklog.comment.as_ref().unwrap();
+    assert_eq!(&**comment, text);
     assert_eq!(comment.lines().count(), 20);
 }
 
 #[test]
 fn test_worklog_comment_raw_field_access() {
-    // Test direct access to comment_raw field for advanced use cases
+    // Test direct access to comment field and raw() method for advanced use cases
     let worklog_json = json!({
         "self": "http://jira.example.com/rest/api/2/issue/TEST-1/worklog/10011",
         "id": "10011",
@@ -299,16 +300,16 @@ fn test_worklog_comment_raw_field_access() {
 
     let worklog: Worklog = serde_json::from_str(&worklog_json.to_string()).unwrap();
 
-    // Verify comment_raw contains the raw value
-    assert!(worklog.comment_raw.is_some());
-    assert!(worklog.comment_raw.as_ref().unwrap().is_string());
-    assert_eq!(
-        worklog.comment_raw.as_ref().unwrap().as_str(),
-        Some("Direct field test")
-    );
+    // Verify comment field contains the TextContent
+    assert!(worklog.comment.is_some());
+    let comment = worklog.comment.as_ref().unwrap();
 
-    // And that comment() extracts it correctly
-    assert_eq!(worklog.comment(), Some("Direct field test".to_string()));
+    // Test direct string access via Deref
+    assert_eq!(&**comment, "Direct field test");
+
+    // Test raw() method for accessing JSON value
+    assert!(comment.raw().is_string());
+    assert_eq!(comment.raw().as_str(), Some("Direct field test"));
 }
 
 #[test]
@@ -332,7 +333,10 @@ fn test_worklog_comment_adf_round_trip() {
     let worklog: Worklog = serde_json::from_str(&worklog_json.to_string()).unwrap();
 
     // Should extract the same text
-    assert_eq!(worklog.comment(), Some(original_text.to_string()));
+    assert_eq!(
+        worklog.comment.as_ref().map(|c| c.as_ref()),
+        Some(original_text)
+    );
 }
 
 #[test]
@@ -351,8 +355,8 @@ fn test_worklog_comment_whitespace_handling() {
 
     // Should preserve whitespace as-is in v2
     assert_eq!(
-        worklog.comment(),
-        Some("  Spaces at start and end  \n\nMultiple blank lines\n".to_string())
+        worklog.comment.as_ref().map(|c| c.as_ref()),
+        Some("  Spaces at start and end  \n\nMultiple blank lines\n")
     );
 }
 
@@ -386,7 +390,10 @@ fn test_worklog_with_all_optional_fields() {
     let worklog: Worklog = serde_json::from_str(&worklog_json.to_string()).unwrap();
 
     assert_eq!(worklog.id, "10014");
-    assert_eq!(worklog.comment(), Some("Comprehensive test".to_string()));
+    assert_eq!(
+        worklog.comment.as_ref().map(|c| c.as_ref()),
+        Some("Comprehensive test")
+    );
     assert!(worklog.author.is_some());
     assert!(worklog.update_author.is_some());
     assert!(worklog.created.is_some());
