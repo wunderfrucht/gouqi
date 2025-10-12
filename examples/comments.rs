@@ -33,9 +33,9 @@ fn main() {
                     for comment in comments.comments {
                         println!(
                             "{:?}: {:?}: {:?}",
-                            comment.author.unwrap().display_name,
-                            comment.created.unwrap(),
-                            comment.body,
+                            comment.author.as_ref().map(|a| &a.display_name),
+                            comment.created,
+                            comment.body().unwrap_or_default(),
                         );
                     }
                 }

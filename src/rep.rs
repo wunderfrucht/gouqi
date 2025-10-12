@@ -306,8 +306,34 @@ pub struct Comment {
     pub created: Option<OffsetDateTime>,
     #[serde(default, with = "time::serde::iso8601::option")]
     pub updated: Option<OffsetDateTime>,
-    pub body: String,
+    #[serde(rename = "body")]
+    pub body_raw: serde_json::Value,
     pub visibility: Option<Visibility>,
+}
+
+impl Comment {
+    /// Extract body text from a comment
+    ///
+    /// Supports both legacy string format (JIRA v2) and Atlassian Document Format (JIRA v3).
+    /// For ADF format, converts the structured document to plain text.
+    pub fn body(&self) -> Option<String> {
+        // First try to get as string (legacy v2 API format)
+        if let Ok(body_text) = serde_json::from_value::<String>(self.body_raw.clone()) {
+            return Some(body_text);
+        }
+
+        // If that fails, try to parse as ADF (v3 API format)
+        if let Ok(adf) = serde_json::from_value::<AdfDocument>(self.body_raw.clone()) {
+            let plain_text = adf.to_plain_text();
+            return if plain_text.is_empty() {
+                None
+            } else {
+                Some(plain_text)
+            };
+        }
+
+        None
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -993,8 +1019,8 @@ pub struct Worklog {
     pub author: Option<User>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub update_author: Option<User>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub comment: Option<String>,
+    #[serde(rename = "comment", skip_serializing_if = "Option::is_none")]
+    pub comment_raw: Option<serde_json::Value>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -1019,6 +1045,33 @@ pub struct Worklog {
     pub time_spent_seconds: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub issue_id: Option<String>,
+}
+
+impl Worklog {
+    /// Extract comment text from a worklog
+    ///
+    /// Supports both legacy string format (JIRA v2) and Atlassian Document Format (JIRA v3).
+    /// For ADF format, converts the structured document to plain text.
+    pub fn comment(&self) -> Option<String> {
+        let comment_value = self.comment_raw.as_ref()?;
+
+        // First try to get as string (legacy v2 API format)
+        if let Ok(comment_text) = serde_json::from_value::<String>(comment_value.clone()) {
+            return Some(comment_text);
+        }
+
+        // If that fails, try to parse as ADF (v3 API format)
+        if let Ok(adf) = serde_json::from_value::<AdfDocument>(comment_value.clone()) {
+            let plain_text = adf.to_plain_text();
+            return if plain_text.is_empty() {
+                None
+            } else {
+                Some(plain_text)
+            };
+        }
+
+        None
+    }
 }
 
 /// Request to create or update a worklog
