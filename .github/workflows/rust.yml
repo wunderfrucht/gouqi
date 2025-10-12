@@ -107,10 +107,10 @@ jobs:
 
   semver-check:
     runs-on: ubuntu-latest
-    steps:   
+    steps:
       - uses: actions/checkout@v5
       - name: Check semver
-        uses: obi1kenobi/cargo-semver-checks-action@v2      
+        uses: obi1kenobi/cargo-semver-checks-action@v2.8
     # Until it is running, keep it as is
     continue-on-error: true
 
