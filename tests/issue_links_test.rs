@@ -109,7 +109,21 @@ fn test_create_issue_link_with_comment() {
                     "key": "TEST-2"
                 },
                 "comment": {
-                    "body": "These issues are related"
+                    "body": {
+                        "version": 1,
+                        "type": "doc",
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "These issues are related"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
                 }
             })
             .to_string(),

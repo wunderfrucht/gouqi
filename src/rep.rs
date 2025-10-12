@@ -148,6 +148,29 @@ impl Issue {
         None
     }
 
+    /// Environment information for the issue
+    ///
+    /// Supports both legacy string format (JIRA v2) and Atlassian Document Format (JIRA v3).
+    /// For ADF format, converts the structured document to plain text.
+    pub fn environment(&self) -> Option<String> {
+        // First try to get as string (legacy v2 API format)
+        if let Some(Ok(env)) = self.string_field("environment") {
+            return Some(env);
+        }
+
+        // If that fails, try to parse as ADF (v3 API format)
+        if let Some(Ok(adf)) = self.field::<AdfDocument>("environment") {
+            let plain_text = adf.to_plain_text();
+            return if plain_text.is_empty() {
+                None
+            } else {
+                Some(plain_text)
+            };
+        }
+
+        None
+    }
+
     fn extract_offset_date_time(&self, field: &str) -> Option<OffsetDateTime> {
         match self.string_field(field) {
             Some(Ok(created)) => match OffsetDateTime::parse(created.as_ref(), &Iso8601::DEFAULT) {
@@ -712,9 +735,34 @@ pub struct IssueKey {
 }
 
 /// Optional comment when creating an issue link
-#[derive(Serialize, Debug)]
+///
+/// Automatically converts plain text to ADF format for v3 API compatibility
+#[derive(Debug)]
 pub struct LinkComment {
-    pub body: String,
+    body: String,
+}
+
+impl LinkComment {
+    /// Create a new link comment
+    pub fn new(body: impl Into<String>) -> Self {
+        Self { body: body.into() }
+    }
+}
+
+impl Serialize for LinkComment {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        // Convert plain text to ADF format for v3 API
+        let adf = AdfDocument::from_text(&self.body);
+
+        let mut state = serializer.serialize_struct("LinkComment", 1)?;
+        state.serialize_field("body", &adf)?;
+        state.end()
+    }
 }
 
 impl CreateIssueLinkInput {
@@ -738,9 +786,7 @@ impl CreateIssueLinkInput {
 
     /// Add a comment to the issue link
     pub fn with_comment(mut self, comment: impl Into<String>) -> Self {
-        self.comment = Some(LinkComment {
-            body: comment.into(),
-        });
+        self.comment = Some(LinkComment::new(comment));
         self
     }
 }
@@ -987,6 +1033,19 @@ impl TransitionTriggerOptionsBuilder {
         R: Into<String>,
     {
         self.field("resolution", Resolution { name: name.into() });
+        self
+    }
+
+    /// Adds a comment to the transition
+    ///
+    /// Automatically converts plain text to ADF format for v3 API compatibility
+    pub fn comment<C>(&mut self, comment: C) -> &mut TransitionTriggerOptionsBuilder
+    where
+        C: Into<String>,
+    {
+        // Convert plain text to ADF format
+        let adf = AdfDocument::from_text(comment.into());
+        self.field("comment", serde_json::json!({"body": adf}));
         self
     }
 
