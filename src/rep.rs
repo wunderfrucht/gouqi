@@ -1231,7 +1231,7 @@ pub struct Worklog {
 #[serde(rename_all = "camelCase")]
 pub struct WorklogInput {
     #[serde(skip_serializing_if = "Option::is_none")]
-    comment: Option<String>,
+    pub comment: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", with = "jira_datetime")]
     pub started: Option<OffsetDateTime>,
     #[serde(skip_serializing_if = "Option::is_none")]
