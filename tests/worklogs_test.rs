@@ -245,7 +245,7 @@ fn test_worklog_input_builder() {
         .with_time_spent("1h");
 
     assert_eq!(worklog.time_spent_seconds, Some(3600));
-    assert_eq!(worklog.comment, Some("Test comment".to_string()));
+    assert_eq!(worklog.comment(), Some("Test comment"));
     assert_eq!(worklog.time_spent, Some("1h".to_string()));
 }
 
@@ -332,6 +332,7 @@ fn test_worklog_input_without_started() {
     // Should not include started field at all
     assert!(!serialized.contains("\"started\""));
     assert!(serialized.contains("\"timeSpentSeconds\":3600"));
+    // Comment should be in plain string format (v2 API - default serialization)
     assert!(serialized.contains("\"comment\":\"No started time\""));
 }
 
@@ -419,7 +420,7 @@ fn test_worklog_builder_chain() {
         .started_at(datetime!(2024-01-15 09:00:00 UTC));
 
     assert_eq!(worklog.time_spent_seconds, Some(7200));
-    assert_eq!(worklog.comment, Some("Fixed critical bug".to_string()));
+    assert_eq!(worklog.comment(), Some("Fixed critical bug"));
     assert_eq!(worklog.started, Some(datetime!(2024-01-15 09:00:00 UTC)));
 }
 

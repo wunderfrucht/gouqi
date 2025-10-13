@@ -1221,17 +1221,62 @@ pub struct Worklog {
 }
 
 /// Request to create or update a worklog
-#[derive(Serialize, Debug, Clone)]
+///
+/// **API Compatibility:**
+/// - JIRA Cloud (v3): Requires comments in Atlassian Document Format (ADF)
+/// - JIRA Server/Data Center (v2): Requires comments as plain strings
+///
+/// This type automatically adapts based on the detected JIRA deployment type.
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorklogInput {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub comment: Option<String>,
+    comment: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", with = "jira_datetime")]
     pub started: Option<OffsetDateTime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time_spent_seconds: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time_spent: Option<String>,
+}
+
+impl WorklogInput {
+    /// Convert to JSON payload for JIRA Cloud v3 API (with ADF comment format)
+    pub(crate) fn to_v3_json(&self) -> serde_json::Value {
+        let mut obj = serde_json::Map::new();
+
+        // Convert comment to ADF format (required for v3)
+        let comment_text = self.comment.as_deref().unwrap_or("");
+        let adf_comment = AdfDocument::from_text(comment_text);
+        obj.insert(
+            "comment".to_string(),
+            serde_json::to_value(adf_comment).unwrap(),
+        );
+
+        if let Some(started) = self.started {
+            let format = time::format_description::parse(
+                "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3][offset_hour sign:mandatory][offset_minute]"
+            ).unwrap();
+            let formatted = started.format(&format).unwrap();
+            obj.insert("started".to_string(), serde_json::Value::String(formatted));
+        }
+
+        if let Some(time_spent_seconds) = self.time_spent_seconds {
+            obj.insert(
+                "timeSpentSeconds".to_string(),
+                serde_json::Value::Number(time_spent_seconds.into()),
+            );
+        }
+
+        if let Some(ref time_spent) = self.time_spent {
+            obj.insert(
+                "timeSpent".to_string(),
+                serde_json::Value::String(time_spent.clone()),
+            );
+        }
+
+        serde_json::Value::Object(obj)
+    }
 }
 
 impl WorklogInput {
@@ -1269,6 +1314,11 @@ impl WorklogInput {
     pub fn with_comment(mut self, comment: impl Into<String>) -> Self {
         self.comment = Some(comment.into());
         self
+    }
+
+    /// Get the comment text
+    pub fn comment(&self) -> Option<&str> {
+        self.comment.as_deref()
     }
 
     /// Set when the work was started

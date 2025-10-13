@@ -1541,11 +1541,26 @@ impl Issues {
     where
         K: Into<String>,
     {
-        self.jira.post(
-            "api",
-            &format!("/issue/{}/worklog", issue_key.into()),
-            worklog,
-        )
+        // Detect deployment type and use appropriate format
+        let deployment_type = self.jira.core.detect_deployment_type();
+        match deployment_type {
+            crate::core::JiraDeploymentType::Cloud => {
+                // Use v3 format (ADF) for Cloud
+                self.jira.post(
+                    "api",
+                    &format!("/issue/{}/worklog", issue_key.into()),
+                    worklog.to_v3_json(),
+                )
+            }
+            _ => {
+                // Use v2 format (plain string) for Server/Data Center
+                self.jira.post(
+                    "api",
+                    &format!("/issue/{}/worklog", issue_key.into()),
+                    worklog,
+                )
+            }
+        }
     }
 
     /// Update an existing worklog
@@ -1579,11 +1594,26 @@ impl Issues {
         K: Into<String>,
         W: Into<String>,
     {
-        self.jira.put(
-            "api",
-            &format!("/issue/{}/worklog/{}", issue_key.into(), worklog_id.into()),
-            worklog,
-        )
+        // Detect deployment type and use appropriate format
+        let deployment_type = self.jira.core.detect_deployment_type();
+        match deployment_type {
+            crate::core::JiraDeploymentType::Cloud => {
+                // Use v3 format (ADF) for Cloud
+                self.jira.put(
+                    "api",
+                    &format!("/issue/{}/worklog/{}", issue_key.into(), worklog_id.into()),
+                    worklog.to_v3_json(),
+                )
+            }
+            _ => {
+                // Use v2 format (plain string) for Server/Data Center
+                self.jira.put(
+                    "api",
+                    &format!("/issue/{}/worklog/{}", issue_key.into(), worklog_id.into()),
+                    worklog,
+                )
+            }
+        }
     }
 
     /// Add a worklog with options for time tracking and notifications
@@ -1629,7 +1659,15 @@ impl Issues {
         } else {
             format!("/issue/{}/worklog?{}", issue_key.into(), query_string)
         };
-        self.jira.post("api", &path, worklog)
+
+        // Detect deployment type and use appropriate format
+        let deployment_type = self.jira.core.detect_deployment_type();
+        match deployment_type {
+            crate::core::JiraDeploymentType::Cloud => {
+                self.jira.post("api", &path, worklog.to_v3_json())
+            }
+            _ => self.jira.post("api", &path, worklog),
+        }
     }
 
     /// Update a worklog with options for time tracking and notifications
@@ -1682,7 +1720,15 @@ impl Issues {
                 query_string
             )
         };
-        self.jira.put("api", &path, worklog)
+
+        // Detect deployment type and use appropriate format
+        let deployment_type = self.jira.core.detect_deployment_type();
+        match deployment_type {
+            crate::core::JiraDeploymentType::Cloud => {
+                self.jira.put("api", &path, worklog.to_v3_json())
+            }
+            _ => self.jira.put("api", &path, worklog),
+        }
     }
 
     /// Delete a worklog
@@ -2699,13 +2745,28 @@ impl AsyncIssues {
     where
         K: Into<String>,
     {
-        self.jira
-            .post(
-                "api",
-                &format!("/issue/{}/worklog", issue_key.into()),
-                worklog,
-            )
-            .await
+        // Detect deployment type and use appropriate format
+        let deployment_type = self.jira.core.detect_deployment_type();
+        match deployment_type {
+            crate::core::JiraDeploymentType::Cloud => {
+                self.jira
+                    .post(
+                        "api",
+                        &format!("/issue/{}/worklog", issue_key.into()),
+                        worklog.to_v3_json(),
+                    )
+                    .await
+            }
+            _ => {
+                self.jira
+                    .post(
+                        "api",
+                        &format!("/issue/{}/worklog", issue_key.into()),
+                        worklog,
+                    )
+                    .await
+            }
+        }
     }
 
     /// Update an existing worklog (async)
@@ -2719,13 +2780,28 @@ impl AsyncIssues {
         K: Into<String>,
         W: Into<String>,
     {
-        self.jira
-            .put(
-                "api",
-                &format!("/issue/{}/worklog/{}", issue_key.into(), worklog_id.into()),
-                worklog,
-            )
-            .await
+        // Detect deployment type and use appropriate format
+        let deployment_type = self.jira.core.detect_deployment_type();
+        match deployment_type {
+            crate::core::JiraDeploymentType::Cloud => {
+                self.jira
+                    .put(
+                        "api",
+                        &format!("/issue/{}/worklog/{}", issue_key.into(), worklog_id.into()),
+                        worklog.to_v3_json(),
+                    )
+                    .await
+            }
+            _ => {
+                self.jira
+                    .put(
+                        "api",
+                        &format!("/issue/{}/worklog/{}", issue_key.into(), worklog_id.into()),
+                        worklog,
+                    )
+                    .await
+            }
+        }
     }
 
     /// Add a worklog with options for time tracking and notifications (async)
@@ -2775,7 +2851,15 @@ impl AsyncIssues {
         } else {
             format!("/issue/{}/worklog?{}", issue_key.into(), query_string)
         };
-        self.jira.post("api", &path, worklog).await
+
+        // Detect deployment type and use appropriate format
+        let deployment_type = self.jira.core.detect_deployment_type();
+        match deployment_type {
+            crate::core::JiraDeploymentType::Cloud => {
+                self.jira.post("api", &path, worklog.to_v3_json()).await
+            }
+            _ => self.jira.post("api", &path, worklog).await,
+        }
     }
 
     /// Update a worklog with options for time tracking and notifications (async)
@@ -2832,7 +2916,15 @@ impl AsyncIssues {
                 query_string
             )
         };
-        self.jira.put("api", &path, worklog).await
+
+        // Detect deployment type and use appropriate format
+        let deployment_type = self.jira.core.detect_deployment_type();
+        match deployment_type {
+            crate::core::JiraDeploymentType::Cloud => {
+                self.jira.put("api", &path, worklog.to_v3_json()).await
+            }
+            _ => self.jira.put("api", &path, worklog).await,
+        }
     }
 
     /// Delete a worklog (async)
