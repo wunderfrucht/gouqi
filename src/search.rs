@@ -186,6 +186,104 @@ impl Search {
     {
         Iter::new(jql, options, &self.jira)
     }
+
+    /// Count issues matching a JQL query
+    ///
+    /// Returns the number of issues matching the query along with an indicator
+    /// of whether the count is exact or approximate.
+    ///
+    /// # Parameters
+    ///
+    /// - `jql`: JQL query string to count issues for
+    /// - `prefer_exact`: Preference for exact count (**best effort only**)
+    ///   - `true`: Request exact count if available (V2 only)
+    ///   - `false`: Accept approximate count for better performance
+    ///
+    /// The actual counting method used depends on the JIRA deployment and API availability:
+    /// - **JIRA Server/Data Center (v2)**: Always returns exact count (single API call with `maxResults=0`)
+    /// - **JIRA Cloud (v3)**: Always returns approximate count via `/search/approximate-count` endpoint
+    ///   - ⚠️ **Note**: `prefer_exact` is currently **ignored** on V3 - see issue #130
+    ///   - Count may be seconds/minutes behind due to indexing delays
+    ///   - Typically very accurate (99%+) for most use cases
+    ///
+    /// The returned `IssueCount` indicates the actual accuracy via the `is_exact` field.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use gouqi::{Jira, Credentials, SearchOptions};
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let jira = Jira::new("https://jira.example.com", Credentials::Basic("user".into(), "pass".into()))?;
+    ///
+    /// // Fast approximate count (when available)
+    /// let count = jira.search().count("project = DEMO", false)?;
+    /// println!("Found {} issues ({})",
+    ///     count.count,
+    ///     if count.is_exact { "exact" } else { "approximate" }
+    /// );
+    ///
+    /// // Request exact count
+    /// let exact = jira.search().count("status = Open", true)?;
+    /// if exact.is_exact {
+    ///     println!("Exactly {} open issues", exact.count);
+    /// } else {
+    ///     println!("Approximately {} open issues (exact unavailable)", exact.count);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn count<J>(&self, jql: J, prefer_exact: bool) -> Result<crate::IssueCount>
+    where
+        J: Into<String>,
+    {
+        let jql_string = jql.into();
+
+        // Determine counting method based on API version
+        match self.jira.core.get_search_api_version() {
+            crate::core::SearchApiVersion::V2 => {
+                // V2 API: Use search with maxResults=0 to get exact count
+                let options = SearchOptions::builder().max_results(0).build();
+                let results = self.list(jql_string, &options)?;
+                Ok(crate::IssueCount {
+                    count: results.total,
+                    is_exact: true,
+                })
+            }
+            crate::core::SearchApiVersion::V3 => {
+                // V3 API: Use approximate-count endpoint
+                // Endpoint: POST /rest/api/3/search/approximate-count
+                let body = serde_json::json!({
+                    "jql": jql_string
+                });
+
+                let response: crate::V3ApproximateCountResponse = self.jira.post_versioned(
+                    "api",
+                    Some("3"),
+                    "/search/approximate-count",
+                    body,
+                )?;
+
+                // V3 API always returns approximate count
+                // TODO(#130): Implement exact counting option for V3 when prefer_exact=true
+                // For now, prefer_exact is ignored on V3 - approximate count is always used
+                let _ = prefer_exact;
+                Ok(crate::IssueCount {
+                    count: response.count,
+                    is_exact: false,
+                })
+            }
+            crate::core::SearchApiVersion::Auto => {
+                // This should not happen as get_search_api_version resolves Auto
+                // Fall back to V2 behavior
+                let options = SearchOptions::builder().max_results(0).build();
+                let results = self.list(jql_string, &options)?;
+                Ok(crate::IssueCount {
+                    count: results.total,
+                    is_exact: true,
+                })
+            }
+        }
+    }
 }
 
 /// Provides an iterator over multiple pages of search results
@@ -405,6 +503,103 @@ impl AsyncSearch {
         };
 
         Ok(stream)
+    }
+
+    /// Count issues matching a JQL query (async version)
+    ///
+    /// Returns the number of issues matching the query along with an indicator
+    /// of whether the count is exact or approximate.
+    ///
+    /// # Parameters
+    ///
+    /// - `jql`: JQL query string to count issues for
+    /// - `prefer_exact`: Preference for exact count (**best effort only**)
+    ///   - `true`: Request exact count if available (V2 only)
+    ///   - `false`: Accept approximate count for better performance
+    ///
+    /// The actual counting method used depends on the JIRA deployment and API availability:
+    /// - **JIRA Server/Data Center (v2)**: Always returns exact count (single API call with `maxResults=0`)
+    /// - **JIRA Cloud (v3)**: Always returns approximate count via `/search/approximate-count` endpoint
+    ///   - ⚠️ **Note**: `prefer_exact` is currently **ignored** on V3 - see issue #130
+    ///   - Count may be seconds/minutes behind due to indexing delays
+    ///   - Typically very accurate (99%+) for most use cases
+    ///
+    /// The returned `IssueCount` indicates the actual accuracy via the `is_exact` field.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use gouqi::r#async::Jira;
+    /// # use gouqi::Credentials;
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let jira = Jira::new("https://jira.example.com", Credentials::Basic("user".into(), "pass".into()))?;
+    ///
+    /// // Fast approximate count (when available)
+    /// let count = jira.search().count("project = DEMO", false).await?;
+    /// println!("Found {} issues ({})",
+    ///     count.count,
+    ///     if count.is_exact { "exact" } else { "approximate" }
+    /// );
+    ///
+    /// // Request exact count
+    /// let exact = jira.search().count("status = Open", true).await?;
+    /// if exact.is_exact {
+    ///     println!("Exactly {} open issues", exact.count);
+    /// } else {
+    ///     println!("Approximately {} open issues (exact unavailable)", exact.count);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn count<J>(&self, jql: J, prefer_exact: bool) -> Result<crate::IssueCount>
+    where
+        J: Into<String>,
+    {
+        let jql_string = jql.into();
+
+        // Determine counting method based on API version
+        match self.jira.core.get_search_api_version() {
+            crate::core::SearchApiVersion::V2 => {
+                // V2 API: Use search with maxResults=0 to get exact count
+                let options = SearchOptions::builder().max_results(0).build();
+                let results = self.list(jql_string, &options).await?;
+                Ok(crate::IssueCount {
+                    count: results.total,
+                    is_exact: true,
+                })
+            }
+            crate::core::SearchApiVersion::V3 => {
+                // V3 API: Use approximate-count endpoint
+                // Endpoint: POST /rest/api/3/search/approximate-count
+                let body = serde_json::json!({
+                    "jql": jql_string
+                });
+
+                let response: crate::V3ApproximateCountResponse = self
+                    .jira
+                    .post_versioned("api", Some("3"), "/search/approximate-count", body)
+                    .await?;
+
+                // V3 API always returns approximate count
+                // TODO(#130): Implement exact counting option for V3 when prefer_exact=true
+                // For now, prefer_exact is ignored on V3 - approximate count is always used
+                let _ = prefer_exact;
+                Ok(crate::IssueCount {
+                    count: response.count,
+                    is_exact: false,
+                })
+            }
+            crate::core::SearchApiVersion::Auto => {
+                // This should not happen as get_search_api_version resolves Auto
+                // Fall back to V2 behavior
+                let options = SearchOptions::builder().max_results(0).build();
+                let results = self.list(jql_string, &options).await?;
+                Ok(crate::IssueCount {
+                    count: results.total,
+                    is_exact: true,
+                })
+            }
+        }
     }
 }
 
