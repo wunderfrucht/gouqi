@@ -1049,6 +1049,48 @@ impl V3SearchResults {
     }
 }
 
+/// Response from V3 approximate-count endpoint
+///
+/// The API returns: `{"count": 123}`
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) struct V3ApproximateCountResponse {
+    pub count: u64,
+}
+
+/// Result of counting issues matching a JQL query
+///
+/// The `is_exact` field indicates whether the count is accurate:
+/// - `true`: Exact count (v2 API or v3 when exact method is available)
+/// - `false`: Approximate count (v3 API approximate-count endpoint)
+///
+/// # Examples
+///
+/// ```no_run
+/// # use gouqi::{Jira, Credentials};
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let jira = Jira::new("https://jira.example.com", Credentials::Basic("user".into(), "pass".into()))?;
+///
+/// // Request exact count (will use best available method)
+/// let result = jira.search().count("project = DEMO", true)?;
+/// if result.is_exact {
+///     println!("Exactly {} issues", result.count);
+/// } else {
+///     println!("Approximately {} issues", result.count);
+/// }
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IssueCount {
+    /// The number of issues found
+    pub count: u64,
+    /// Whether the count is exact (`true`) or approximate (`false`)
+    ///
+    /// This reflects the actual counting method used, which may differ from
+    /// the user's preference if a requested method is unavailable.
+    pub is_exact: bool,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct TimeTracking {
