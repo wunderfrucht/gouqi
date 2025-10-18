@@ -239,6 +239,7 @@ impl Search {
         let jql_string = jql.into();
 
         // Determine counting method based on API version
+        // Note: get_search_api_version() resolves Auto to V2/V3, so only those variants are possible
         match self.jira.core.get_search_api_version() {
             crate::core::SearchApiVersion::V2 => {
                 // V2 API: Use search with maxResults=0 to get exact count
@@ -273,14 +274,7 @@ impl Search {
                 })
             }
             crate::core::SearchApiVersion::Auto => {
-                // This should not happen as get_search_api_version resolves Auto
-                // Fall back to V2 behavior
-                let options = SearchOptions::builder().max_results(0).build();
-                let results = self.list(jql_string, &options)?;
-                Ok(crate::IssueCount {
-                    count: results.total,
-                    is_exact: true,
-                })
+                unreachable!("get_search_api_version() always resolves Auto to V2 or V3")
             }
         }
     }
@@ -558,6 +552,7 @@ impl AsyncSearch {
         let jql_string = jql.into();
 
         // Determine counting method based on API version
+        // Note: get_search_api_version() resolves Auto to V2/V3, so only those variants are possible
         match self.jira.core.get_search_api_version() {
             crate::core::SearchApiVersion::V2 => {
                 // V2 API: Use search with maxResults=0 to get exact count
@@ -590,14 +585,7 @@ impl AsyncSearch {
                 })
             }
             crate::core::SearchApiVersion::Auto => {
-                // This should not happen as get_search_api_version resolves Auto
-                // Fall back to V2 behavior
-                let options = SearchOptions::builder().max_results(0).build();
-                let results = self.list(jql_string, &options).await?;
-                Ok(crate::IssueCount {
-                    count: results.total,
-                    is_exact: true,
-                })
+                unreachable!("get_search_api_version() always resolves Auto to V2 or V3")
             }
         }
     }
