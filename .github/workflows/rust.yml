@@ -164,6 +164,9 @@ jobs:
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
 
+      - name: Create coverage directory
+        run: mkdir -p coverage
+
       - name: Run cargo-llvm-cov
         run: cargo llvm-cov --all-features --codecov --output-path coverage/codecov.json
         
